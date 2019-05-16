@@ -1,10 +1,13 @@
 # Copyright notice to be added
-__all__ = ['LoggerError',
-           'PmdObjCreateError',
-           'NCDShutdown'
+__all__ = ['LogExc',
+           'ObjCreateExc',
+           'ObjParseExc',
+           'ObjConsistencyExc',
+           'NcdShutdownExc',
+           'OsCommandExc'
            ]
 
-class Error(Exception):
+class NcdException(Exception):
     '''
     Base class for all exceptions
     '''
@@ -15,20 +18,23 @@ class Error(Exception):
     def __str__(self):
         return("%s" %self.error)
     
-class LoggerError(Error):
+class LogExc(NcdException):
     '''Exception raised by logging handler'''
     pass
 
-class PmdObjCreateError(Error):
-    '''Exception raised while creating PMD objects'''
+class ObjCreateExc(NcdException):
+    '''Exception raised while creating Dataif objects'''
     pass
 
-class ParseError(Error):
-    '''Exception raised while parsing logs'''
+class ObjParseExc(NcdException):
+    '''Exception raised while parsing for Dataif objects'''
     pass
 
-class NCDShutdown(Exception):
-    '''
-    Graceful shutdown indication to ncd
-    '''
+class ObjConsistencyExc(NcdException):
+    '''Exception raised when there is inconsistency in Dataif object'''
+    
+class NcdShutdownExc(Exception):
+    '''Graceful shutdown indication to ncd'''
     pass
+class OsCommandExc(Exception):
+    '''Exceptions caught in running OS command'''

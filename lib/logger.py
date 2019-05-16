@@ -3,9 +3,9 @@
 
 import inspect
 import datetime
-from error import LoggerError
+from error import LogExc
 
-__all__ = ['nlog']
+__all__ = ['Logger']
 
 class Logger(object):
     """
@@ -38,7 +38,7 @@ class Logger(object):
         """
         
         if not (0 <= level <= 2):
-            raise LoggerError("Unsupported log level %d. Specifiy 0, 1 or 2 only")
+            raise LogExc("Unsupported log level %d. Specifiy 0, 1 or 2 only")
                 
         self.__level = level
         
@@ -86,5 +86,3 @@ class Logger(object):
         """
         if (self.__level >= 2):
             print self.__log(2, args)
-    
-nlog = Logger()
