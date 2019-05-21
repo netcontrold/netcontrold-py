@@ -51,11 +51,11 @@ ncd_samples_max = 6
 # have arrived at a balanced equilibrium. Smaller the value, better 
 # the load balance in all PMDs,  at the same time larger the time
 # taken by tool arrive at conclusion for rebalance.
-ncd_pmd_load_variance_max = 3
+ncd_pmd_load_variance_max = 100
 
 # Minimum per core load threshold to trigger rebalance, if the pmd load
 # is above this threshold.
-ncd_pmd_core_threshold = 80
+ncd_pmd_core_threshold = 50
 
 class Dataif_Rxq(object):
     """
@@ -479,7 +479,7 @@ def get_pmd_stats(pmd_map):
                                 line)
             numa_id = int(linesre.groups()[0])
             core_id = int(linesre.groups()[1])
-            
+
             # If in mid of sampling, we should have pmd_map having
             # entry for this core id.
             if pmd_map.has_key(core_id):
@@ -506,6 +506,9 @@ def get_pmd_stats(pmd_map):
                 
                 # numa id of pmd is of core's.
                 pmd.numa_id = numa_id
+        elif line.startswith("main thread"):
+            # end of pmd stats
+            break
         else:
             # From other lines, we retrieve stats of the pmd.
             (sname, sval) = line.split(":")
@@ -744,9 +747,10 @@ def rebalance_dryrun(pmd_map):
 
     return pmd_map
 
-def pmd_balanced(pmd_map):
+def pmd_need_rebalance(pmd_map):
     """
     Check whether all the pmds have arrived at the balanced equilibrium.
+    Also,  pmd load is above minimum threshold.
 
     Parameters
     ----------
@@ -755,7 +759,10 @@ def pmd_balanced(pmd_map):
     """
     
     pmd_load_list = map(lambda o: o.pmd_load, pmd_map.values())
-    if (util.variance(pmd_load_list) <= ncd_pmd_load_variance_max):
+    mean = sum(pmd_load_list)/len(pmd_load_list)
+    var = util.variance(pmd_load_list)
+
+    if (var >= ncd_pmd_load_variance_max and mean >= ncd_pmd_core_threshold):
         return True
 
     return False
@@ -897,7 +904,7 @@ def ncd_main():
                 nlog.info("pmd id %d load %d" %(pmd_id, pmd.pmd_load))
      
             # check if balance state of all pmds is reached           
-            if pmd_balanced(pmd_map):
+            if not pmd_need_rebalance(pmd_map):
                 nlog.info("new pmd load estimated is:")
                 for pmd_id in sorted(pmd_map.keys()):
                     pmd = pmd_map[pmd_id]
