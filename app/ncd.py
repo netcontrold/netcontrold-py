@@ -860,10 +860,15 @@ def ncd_main():
     rebal_tick = 0
     rebal_i = 0
     
-    nlog.info("pmd load before rebalancing by this tool:")
     initial_pmd_map = {}
     for i in range(0, ncd_samples_max):
         initial_pmd_map = collect_data(initial_pmd_map)
+
+    if len(initial_pmd_map) < 2:
+        nlog.info("required at least two pmds to check rebalance..")
+        sys.exit(1)
+
+    nlog.info("pmd load before rebalancing by this tool:")
     for pmd_id in sorted(initial_pmd_map.keys()):
         pmd = initial_pmd_map[pmd_id]
         rx_var = util.variance(pmd.rx_cyc)
