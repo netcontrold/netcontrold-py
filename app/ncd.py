@@ -53,6 +53,10 @@ ncd_samples_max = 6
 # taken by tool arrive at conclusion for rebalance.
 ncd_pmd_load_variance_max = 3
 
+# Minimum per core load threshold to trigger rebalance, if the pmd load
+# is above this threshold.
+ncd_pmd_core_threshold = 80
+
 class Dataif_Rxq(object):
     """
     Class to represent the RXQ in the datapath of vswitch.
@@ -603,6 +607,7 @@ def get_pmd_rxqs(pmd_map):
                 qcpu *= pmd.proc_cpu_cyc[pmd.cyc_idx]
                 # update rebalancing pmd for cpu cycles and rx count.
                 reb_pmd.proc_cpu_cyc[pmd.cyc_idx] += qcpu
+                reb_pmd.idle_cpu_cyc[pmd.cyc_idx] -= qcpu
                 reb_pmd.rx_cyc[pmd.cyc_idx] += qrx
             else:
                 # port not in rebalancing state, so update rxq for its
@@ -663,31 +668,26 @@ def rebalance_dryrun(pmd_map):
             pmd.pmd_load = 0
 
     # Sort pmds in pmd_map based on the rxq load, in descending order.
-    # Pick the pmd which is more loaded from one of the list.
+    # Pick the pmd which is more loaded from one end of the list.
     pmd_load_list = sorted(pmd_map.values(), key=lambda o: o.pmd_load, reverse=True)
+    
+    # Split list into busy and less loaded.
+    bpmd_load_list = []
+    ipmd_load_list = []
     for pmd in pmd_load_list:
-        # skip pmd when its rxq count is:
-        #    0 (when all its rxqs are already picked by rebalancing 
-        #       pmd in dry-run).
-        #    1  pmd has just ond rxq, so no need to rebalance it.
-        if pmd.count_rxq() <= 1:
+        # pmd load of above configured threshold 
+        if pmd.pmd_load > ncd_pmd_core_threshold:
+            bpmd_load_list.append(pmd)
+
+        # skip pmd when its rxq count is one i.e pmd has just one rxq,
+        # and this rxq is already busy (hencs, pmd was busy).
+        elif pmd.count_rxq() == 1:
             continue
-        
-        # In the descending order for pmd load, we should stop checking
-        # this zero load pmd as well as those following it. 
-        if pmd.pmd_load == 0:
-            break
-
-        # Pick the pmd which is less loaded from other end of the list.
-        # As we choose pmd from both the ends of pmd_load_list, 
-        # at some point the list might get empty and we stop anymore
-        # rebalancing here.
-        try:
-            ipmd = pmd_load_list.pop(-1)
-        except IndexError:
-            nlog.info("one round of rebalance is done, wait for balance check..")
-            break
-
+        # rest of the pmds are less loaded (or idle).
+        else:
+            ipmd_load_list.append(pmd)
+            
+    for pmd in bpmd_load_list:       
         # As busy and idles (or less loaded) pmds are identified,
         # move less loaded rxqs from busy pmd into idle pmd.
         for port in pmd.port_map.values():
@@ -695,44 +695,52 @@ def rebalance_dryrun(pmd_map):
             # we leave atleast one rxq, not to make this busy pmd as
             # idle again.
             if pmd.count_rxq() <= 1:
-                break
+                continue
 
-            # Current pmd and rebalancing pmd should be in same numa.
-            assert(ipmd.numa_id == port.numa_id)
+            ipmd = None
+            for i in ipmd_load_list:
+                # Current pmd and rebalancing pmd should be in same numa.
+                if (i.numa_id != port.numa_id):
+                    continue
+                
+                ipmd = ipmd_load_list.pop(0)
+                break
+            
+            if not ipmd:
+                nlog.debug("no more pmd available to accept new rxqs..")
+                break 
 
             # Sort rxqs based on their current load, in ascending order.
             pmd_proc_cyc = pmd.proc_cpu_cyc[pmd.cyc_idx]
             rxq_load_list = sorted(port.rxq_map.values(),
                 key=lambda o: ((o.cpu_cyc[pmd.cyc_idx] * 100)/pmd_proc_cyc))
-    
-            for rxq in rxq_load_list:
-                # move lesser busy rxq into the rebalancing pmd.
-                iport = ipmd.add_port(port.name, id=port.id, numa_id=port.numa_id)
-                nlog.info("moving rxq %d (port %s) from pmd %d into idle pmd %d .."
-                    %(rxq.id, port.name, pmd.id, ipmd.id))
-                irxq = iport.add_rxq(rxq.id)
-                assert(iport.numa_id == port.numa_id)
-                
-                # Copy cpu cycles of this rxq into its clone in
-                # in rebalancing pmd (for dry-run).
-                irxq.cpu_cyc = copy.deepcopy(rxq.cpu_cyc)
-                
-                # No more tracking of this rxq in current pmd.              
-                port.del_rxq(rxq.id)
-                
-                # Until dry-run is completed and rebalance performed,
-                # this rxq should know its current pmd, even it is
-                # with rebalancing pmd. Only then, we can derive cpu
-                # usage of this rxq from its current pmd (as we scan
-                # data in each sampling interval).
-                opmd = rxq.pmd
-                oport = opmd.find_port_by_name(port.name)
-                oport.rxq_rebalanced[rxq.id] = ipmd.id
-                irxq.pmd = opmd
 
-                # check pmd again if its rxqs count is not just 1
-                if pmd.count_rxq() <= 1:
-                    break
+            # pick one rxq to rebalance and this was least loaded in this pmd.    
+            rxq = rxq_load_list.pop(0)
+            
+            # move this rxq into the rebalancing pmd.
+            iport = ipmd.add_port(port.name, id=port.id, numa_id=port.numa_id)
+            nlog.info("moving rxq %d (port %s) from pmd %d into idle pmd %d .."
+                %(rxq.id, port.name, pmd.id, ipmd.id))
+            irxq = iport.add_rxq(rxq.id)
+            assert(iport.numa_id == port.numa_id)
+            
+            # Copy cpu cycles of this rxq into its clone in
+            # in rebalancing pmd (for dry-run).
+            irxq.cpu_cyc = copy.deepcopy(rxq.cpu_cyc)
+            
+            # No more tracking of this rxq in current pmd.              
+            port.del_rxq(rxq.id)
+            
+            # Until dry-run is completed and rebalance completed,
+            # this rxq should know its current pmd, even it is
+            # with rebalancing pmd. Only then, we can derive cpu
+            # usage of this rxq from its current pmd (as we scan
+            # data in each sampling interval).
+            opmd = rxq.pmd
+            oport = opmd.find_port_by_name(port.name)
+            oport.rxq_rebalanced[rxq.id] = ipmd.id
+            irxq.pmd = opmd
 
     return pmd_map
 
