@@ -825,8 +825,8 @@ def ncd_main():
 
     argpobj.add_argument('-s', '--sample-interval',
         type=int,
-        default=5,
-        help='interval in seconds between each sampling (default: 5)')
+        default=60,
+        help='interval in seconds between each sampling (default: 60)')
 
     argpobj.add_argument('-v', '--verbose',
         type=int,
