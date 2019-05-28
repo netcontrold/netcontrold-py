@@ -684,7 +684,7 @@ def rebalance_dryrun(pmd_map):
 
         # skip pmd when its rxq count is one i.e pmd has just one rxq,
         # and this rxq is already busy (hencs, pmd was busy).
-        elif pmd.count_rxq() == 1:
+        elif pmd.count_rxq() == 1 and pmd.pmd_load >= ncd_pmd_core_threshold:
             continue
         # rest of the pmds are less loaded (or idle).
         else:
