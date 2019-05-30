@@ -807,7 +807,9 @@ def rebalance_switch(pmd_map):
     return "ovs-vsctl %s" %cmd
 
 def ncd_kill(signal, frame):
-    nlog.info("Got signal %s, stopping NCD .." %signal)
+    nlog.info("Got signal %s, dump current state of PMDs .." %signal)
+    nlog.info(frame.f_locals['pmd_map'])
+    
     raise NcdShutdownExc
 
 def ncd_main():
