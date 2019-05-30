@@ -864,13 +864,13 @@ def ncd_main():
 
     argpobj.add_argument('-n', '--rebalance-n',
         type=int,
-        default=-1,
-        help='maximum number of rebalance attempts (default: infinite)')
+        default=1,
+        help='maximum number of rebalance attempts (default: 1)')
 
     argpobj.add_argument('-s', '--sample-interval',
         type=int,
-        default=60,
-        help='interval in seconds between each sampling (default: 60)')
+        default=10,
+        help='interval in seconds between each sampling (default: 10)')
 
     argpobj.add_argument('-v', '--verbose',
         type=int,
