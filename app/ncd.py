@@ -748,9 +748,9 @@ def rebalance_dryrun(pmd_map):
                 break 
 
             # Sort rxqs based on their current load, in ascending order.
-            pmd_proc_cyc = pmd.proc_cpu_cyc[pmd.cyc_idx]
+            pmd_proc_cyc = sum(pmd.proc_cpu_cyc)
             rxq_load_list = sorted(port.rxq_map.values(),
-                key=lambda o: ((o.cpu_cyc[pmd.cyc_idx] * 100)/pmd_proc_cyc))
+                key=lambda o: ((sum(o.cpu_cyc) * 100)/pmd_proc_cyc))
 
             # pick one rxq to rebalance and this was least loaded in this pmd.    
             try:
