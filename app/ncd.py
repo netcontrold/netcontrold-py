@@ -57,6 +57,10 @@ ncd_pmd_load_variance_max = 100
 # is above this threshold.
 ncd_pmd_core_threshold = 50
 
+# Minimum interval for vswitch to reach steady state, following
+# pmd reconfiguration.
+ncd_vsw_wait_min = 20
+
 class Dataif_Rxq(object):
     """
     Class to represent the RXQ in the datapath of vswitch.
@@ -973,6 +977,10 @@ def ncd_main():
                             nlog.info("problem running this command.. check vswitch!")
                             sys.exit(1)
 
+                        # sleep for few seconds before thrashing current dry-run
+                        nlog.info("waiting for %d seconds before new dry runs begin.." %ncd_vsw_wait_min)
+                        time.sleep(ncd_vsw_wait_min)
+                    
                     else:
                         nlog.info("no new optimization found ..")
 
@@ -1015,8 +1023,8 @@ def ncd_main():
                         sys.exit(1)
 
                     # sleep for few seconds before thrashing current dry-run
-                    nlog.info("waiting for 30 seconds before new dry runs begin..")
-                    time.sleep(30)
+                    nlog.info("waiting for %d seconds before new dry runs begin.." %ncd_vsw_wait_min)
+                    time.sleep(ncd_vsw_wait_min)
                     
                 else:
                     nlog.info("skipping rebalance as min rebalance interval not reached ..")
