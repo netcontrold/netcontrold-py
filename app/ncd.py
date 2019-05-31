@@ -651,20 +651,16 @@ def update_pmd_load(pmd_map):
     pmd_map : dict
         mapping of pmd id and its Dataif_Pmd object.    
     """
-    for pmd_id, pmd in pmd_map.items():
+    for pmd in pmd_map.values():
         # Given we have samples of rx packtes, processing and idle cpu
-        # cycles of a pmd, we do variance on these samples to derive
-        # how close these values are. Instead of average which could
-        # potentially hide spike in samples, variance yields better
-        # balance on these samples first, as these values decide pmd
-        # load as below.
-        rx_var = util.variance(pmd.rx_cyc)
-        idle_var = util.variance(pmd.idle_cpu_cyc)
-        proc_var = util.variance(pmd.proc_cpu_cyc)
+        # cycles of a pmd, we calculate load on every pmd.
+        rx_sum = sum([j - i for i, j in zip(pmd.rx_cyc[:-1], pmd.rx_cyc[1:])])
+        idle_sum = sum([j - i for i, j in zip(pmd.idle_cpu_cyc[:-1], pmd.idle_cpu_cyc[1:])])
+        proc_sum = sum([j - i for i, j in zip(pmd.proc_cpu_cyc[:-1], pmd.proc_cpu_cyc[1:])])
 
         try:
-            cpp = (idle_var+proc_var)/rx_var
-            pcpp = proc_var/rx_var
+            cpp = (idle_sum+proc_sum)/rx_sum
+            pcpp = proc_sum/rx_sum
             pmd.pmd_load = float((pcpp*100)/cpp)
         except ZeroDivisionError:
             # When a pmd is really idle and also yet to be picked for
@@ -910,9 +906,19 @@ def ncd_main():
     
     pmd_map = {}
     pmd_map_balanced = None
-    for i in range(0, ncd_samples_max):
+
+    # The first sample do not have previous sample to calculate
+    # current difference (as we use this later). So, do one extra
+    # sampling to over write first sample and rotate left on the
+    # samples right away to restore consistency of sample progress.
+    for i in range(0, ncd_samples_max+1):
         pmd_map = collect_data(pmd_map)
         time.sleep(ncd_sample_interval)
+
+    for pmd in pmd_map.values():
+        pmd.proc_cpu_cyc = pmd.proc_cpu_cyc[1:] + pmd.proc_cpu_cyc[:1]
+        pmd.idle_cpu_cyc = pmd.idle_cpu_cyc[1:] + pmd.idle_cpu_cyc[:1]
+        pmd.rx_cyc = pmd.rx_cyc[1:] + pmd.rx_cyc[:1]
 
     if len(pmd_map) < 2:
         nlog.info("required at least two pmds to check rebalance..")
