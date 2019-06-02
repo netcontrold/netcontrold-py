@@ -1063,6 +1063,9 @@ def ncd_main():
         pmd_map = collect_data(pmd_map)
         time.sleep(ncd_sample_interval)
 
+        #refresh timer ticks
+        rebal_tick += 1
+
     if len(pmd_map) < 2:
         nlog.info("required at least two pmds to check rebalance..")
         sys.exit(1)
@@ -1080,9 +1083,11 @@ def ncd_main():
     # begin rebalance dry run
     while (1):
         try:
-            # dry run on collected stats
-            pmd_map = rebalance_dryrun(pmd_map)
-            rebal_i += 1
+            # dry-run only if atleast one pmd over loaded.
+            if pmd_need_rebalance(pmd_map):
+                # dry run on collected stats
+                pmd_map = rebalance_dryrun(pmd_map)
+                rebal_i += 1
             
             # collect samples of pmd and rxq stats.
             for i in range(0, ncd_samples_max):
@@ -1093,15 +1098,25 @@ def ncd_main():
                 rebal_tick += 1
 
             update_pmd_load(pmd_map)
+            cur_var = pmd_load_variance(pmd_map)
+
+            # if no dry-run, go back to collect data again.
+            if not rebal_i:
+                nlog.info("no dryrun done performed. current pmd load:")
+                for pmd_id in sorted(pmd_map.keys()):
+                    pmd = pmd_map[pmd_id]
+                    nlog.info("pmd id %d load %d" %(pmd_id, pmd.pmd_load))
+
+                nlog.info("current pmd load variance: %d" %cur_var)
+                continue
 
             # compare previous and current state of pmds.
-            new_var = pmd_load_variance(pmd_map)
-            nlog.info("pmd load variance: best %d, dry run(%d) %d" %(good_var, rebal_i, new_var))
+            nlog.info("pmd load variance: best %d, dry run(%d) %d" %(good_var, rebal_i, cur_var))
 
-            if (new_var < good_var):
-                diff = (good_var-new_var)*100/good_var
+            if (cur_var < good_var):
+                diff = (good_var-cur_var)*100/good_var
                 if diff > ncd_pmd_load_improve_min:
-                    good_var = new_var
+                    good_var = cur_var
                     pmd_map_balanced = copy.deepcopy(pmd_map)
                     apply_rebal = True
 
@@ -1112,14 +1127,13 @@ def ncd_main():
 
             # check if we reached maximum allowable dry-runs.
             if rebal_i < ncd_rebal_n:
-
                 # continue for more dry runs.
                 continue
 
             # check if balance state of all pmds is reached
-            if not pmd_need_rebalance(pmd_map):
+            if apply_rebal:
                 # check if rebalance call needed really.
-                if apply_rebal and (rebal_tick > rebal_tick_n):
+                if (rebal_tick > rebal_tick_n):
                     rebal_tick = 0
                     cmd = rebalance_switch(pmd_map_balanced)
                     nlog.info("vswitch command for current optimization is: %s" %cmd)
@@ -1132,9 +1146,11 @@ def ncd_main():
                     # sleep for few seconds before thrashing current dry-run
                     nlog.info("waiting for %d seconds before new dry runs begin.." %ncd_vsw_wait_min)
                     time.sleep(ncd_vsw_wait_min)
-                    
                 else:
-                    nlog.info("no new optimization found ..")
+                    nlog.info("minimum rebalance interval not met! now at %d sec"
+                        %(rebal_tick * ncd_sample_interval))
+            else:
+                nlog.info("no new optimization found ..")
 
             # reset collected data
             pmd_map = {}
