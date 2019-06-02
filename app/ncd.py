@@ -1007,10 +1007,10 @@ def ncd_main():
         default=10,
         help='interval in seconds between each sampling (default: 10)')
 
-    argpobj.add_argument('-r', '--round-robin',
+    argpobj.add_argument('--iq',
         action='store_true',
         default=False,
-        help='use round robin method to re-pin rxqs (default: False)')
+        help='rebalance by idle-queue logic (default: False)')
 
     argpobj.add_argument('-v', '--verbose',
         type=int,
@@ -1029,16 +1029,18 @@ def ncd_main():
     ncd_rebal_interval = args.rebalance_interval
     ncd_rebal_n = args.rebalance_n
     ncd_sample_interval = args.sample_interval
-    ncd_rr_rebal = args.round_robin
+    ncd_iq_rebal = args.iq
     
     # set signal handler to abort ncd
     signal.signal(signal.SIGINT, ncd_kill)
     signal.signal(signal.SIGTERM, ncd_kill)
 
     # set rebalance method.
-    rebalance_dryrun = rebalance_dryrun_iq
-    if ncd_rr_rebal:
-        rebalance_dryrun = rebalance_dryrun_rr
+    rebalance_dryrun = rebalance_dryrun_rr
+    if ncd_iq_rebal:
+        rebalance_dryrun = rebalance_dryrun_iq
+    else:
+        # round robin logic to rebalance.
         # restrict only one dry run for rr mode.
         ncd_rebal_n = 1
             
@@ -1084,7 +1086,8 @@ def ncd_main():
     while (1):
         try:
             # dry-run only if atleast one pmd over loaded.
-            if pmd_need_rebalance(pmd_map):
+            # or, atleast in mid of dry-runs.
+            if pmd_need_rebalance(pmd_map) or rebal_i:
                 # dry run on collected stats
                 pmd_map = rebalance_dryrun(pmd_map)
                 rebal_i += 1
