@@ -938,7 +938,7 @@ def pmd_need_rebalance(pmd_map):
     """
 
     for pmd in pmd_map.values():
-        if pmd.pmd_load >= ncd_pmd_core_threshold:
+        if pmd.pmd_load >= ncd_pmd_core_threshold and pmd.count_rxq() > 1:
             nlog.debug("pmd %d is loaded more than %d threshold" %(pmd.id, ncd_pmd_core_threshold))
             return True
 
