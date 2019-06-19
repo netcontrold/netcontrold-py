@@ -969,10 +969,16 @@ def rebalance_switch(pmd_map):
     """
 
     port_to_pmdq = {}
+    numa = 0
     for pmd_id, pmd in pmd_map.items():
+        # leave one pmd in every numa as non-isolated.
+        if pmd.numa_id == numa:
+           numa += 1
+           continue
+
         nlog.critical(pmd)
         for port_name, port in pmd.port_map.items():
-           if not port_to_pmdq.has_key(port_name):
+           if not port_to_pmdq.has_key(port_name) and len(port.rxq_map) != 0:
                port_to_pmdq[port_name] = ""
            for rxq_id in port.rxq_map:
                port_to_pmdq[port_name] += "%d:%d," %(rxq_id, pmd_id)
