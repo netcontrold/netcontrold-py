@@ -810,7 +810,7 @@ def rebalance_dryrun_iq(pmd_map):
             update_pmd_load(pmd_map)
             if ipmd.pmd_load >= ncd_pmd_core_threshold:
                 nlog.info("removing pmd %d from idle pmd list" %ipmd.id)
-                ipmd_load_list.remove(ipmd.id)
+                ipmd_load_list.remove(ipmd)
                 ipmd = None
 
     return pmd_map
