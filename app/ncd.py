@@ -1181,6 +1181,12 @@ def ncd_main():
             pmd_map_rebalanced = pmd_map
             rebal_i = 0
 
+            nlog.info("dry-run reset. current pmd load:")
+            for pmd_id in sorted(pmd_map.keys()):
+                pmd = pmd_map[pmd_id]
+                nlog.info("pmd id %d load %d" %(pmd_id, pmd.pmd_load))
+
+            nlog.info("current pmd load variance: %d" %good_var)
         except NcdShutdownExc:
             nlog.info("Exiting NCD ..")    
             sys.exit(1)
