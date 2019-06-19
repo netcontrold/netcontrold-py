@@ -852,7 +852,7 @@ def rebalance_dryrun_rr(pmd_map):
         for port in pmd.port_map.values():
             rxq_list += port.rxq_map.values()
 
-    rxq_load_list = sorted(rxq_list, key=lambda o: sum(o.cpu_cyc))
+    rxq_load_list = sorted(rxq_list, key=lambda o: sum(o.cpu_cyc), reverse=True)
 
     rpmd = None
     rpmd_gen = (o for o in pmd_list)
