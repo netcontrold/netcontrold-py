@@ -938,10 +938,14 @@ def pmd_need_rebalance(pmd_map):
         mapping of pmd id and its Dataif_Pmd object.
     """
 
+    pmd_loaded = 0
     for pmd in pmd_map.values():
         if pmd.pmd_load >= ncd_pmd_core_threshold and pmd.count_rxq() > 1:
             nlog.debug("pmd %d is loaded more than %d threshold" %(pmd.id, ncd_pmd_core_threshold))
-            return True
+            pmd_loaded += 1
+
+    if (len(pmd_map) > pmd_loaded > 0):
+        return True
 
     return False
 
