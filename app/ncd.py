@@ -590,6 +590,7 @@ def get_pmd_rxqs(pmd_map):
                 # TO-DO: stop rebalance if pmd is assigned manually 
                 # a new port that this run is not aware of.
                 port = pmd.add_port(pname)
+                upd_port_to_id()
             
             # update port attributes now.
             port.id = port_to_id[pname]
