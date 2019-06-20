@@ -1178,7 +1178,7 @@ def ncd_main():
             update_pmd_load(pmd_map)
 
             good_var = pmd_load_variance(pmd_map)
-            pmd_map_rebalanced = pmd_map
+            pmd_map_balanced = copy.deepcopy(pmd_map)
             rebal_i = 0
 
             nlog.info("dry-run reset. current pmd load:")
