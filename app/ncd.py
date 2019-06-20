@@ -37,6 +37,7 @@ import copy
 # Global variables used by this application.
 nlog = Logger()
 port_to_id = {}
+port_to_cls = {}
 
 # Maximum number of times to collect various stats from the vswitch
 # before using them for rebalance calculation. Larger the value,
@@ -61,22 +62,17 @@ ncd_pmd_core_threshold = 95
 # pmd reconfiguration.
 ncd_vsw_wait_min = 20
 
-class Dataif_Rxq(object):
+class Rxq(object):
     """
-    Class to represent the RXQ in the datapath of vswitch.
+    Class to represent the RXQ in the port of a vswitch.
     
     Attributes
     ----------
     id : int
         id of the rxq
     port : object
-        instance of Dataif_Port class.
+        instance of Port class.
         every rxq must be one of the members in port.rxq_map     
-    pmd : object
-        instance of Dataif_Pmd class.
-        rxq's current association with this pmd before rebalance.
-    cpu_cyc: list
-        cpu cycles used by this rxq in each sampling interval.
     """
     
     def __init__(self, id=None):
@@ -99,12 +95,38 @@ class Dataif_Rxq(object):
         
         self.id = id
         self.port = None
+
+class Dataif_Rxq(Rxq):
+    """
+    Class to represent the RXQ in the datapath of vswitch.
+    
+    Attributes
+    ----------
+    pmd : object
+        instance of Dataif_Pmd class.
+        rxq's current association with this pmd before rebalance.
+    cpu_cyc: list
+        cpu cycles used by this rxq in each sampling interval.
+    """
+    
+    def __init__(self, id=None):
+        """
+        Initialize Dataif_Rxq object.
+        
+        Parameters
+        ----------
+        id : int
+            the id of the rxq
+        """
+        
+        super(Dataif_Rxq, self).__init__(id)
+        
         self.pmd = None
         self.cpu_cyc = [0, ] * ncd_samples_max
 
-class Dataif_Port(object):
+class Port(object):
     """
-    Class to represent the port in the datapath of vswitch.
+    Class to represent the port in the vswitch.
     
     Attributes
     ----------
@@ -116,8 +138,6 @@ class Dataif_Port(object):
         numa that this port is associated with.    
     rxq_map : dict
         map of rxqs that this port is associated with.
-    rxq_rebalanced : dict
-        map of PMDs that its each rxq will be associated with. 
         
     Methods
     -------
@@ -131,7 +151,7 @@ class Dataif_Port(object):
 
     def __init__(self, name=None):
         """
-        Initialize Dataif_Port object.
+        Initialize Port object.
         
         Parameters
         ----------
@@ -151,8 +171,7 @@ class Dataif_Port(object):
         self.id = None
         self.numa_id = None
         self.rxq_map = {}
-        self.rxq_rebalanced = {}
-    
+
     def find_rxq_by_id(self, id):
         """
         Return Dataif_Rxq of this id if available in port.rxq_map.
@@ -192,11 +211,6 @@ class Dataif_Port(object):
         # remember the port this rxq is tied with.
         rxq.port = self
         
-        # caller to ensure assigning the pmd that this rxq is 
-        # currently tied with. This assignment should not be
-        # changed until we complete rebalance dry-run. 
-        rxq.pmd = None
-        
         return rxq
     
     def del_rxq(self, id):
@@ -221,7 +235,51 @@ class Dataif_Port(object):
 
         # remove rxq from its map.
         self.rxq_map.pop(id, None)
-       
+
+def make_dataif_port(port_name=None):
+    """
+    Factory method to create a class with Port attributes for a given port.
+    """
+
+    global port_to_cls
+    
+    # Inherit attributes of Port and create a new class.
+    class Dataif_Port(Port):
+        """
+        Class to represent the port in the datapath of vswitch.
+        
+        Attributes
+        ----------
+        name : string
+            name of the port the class is created for.
+        rx_drop_cyc : list
+            samples of dropped packets by this port in RX.
+        tx_drop_cyc : list
+            samples of dropped packets by this port in TX.
+        cyc_idx : int
+            current sampling index.
+        rxq_rebalanced : dict
+            map of PMDs that its each rxq will be associated with. 
+        """
+
+        name = port_name
+        rx_drop_cyc = [0, ] * ncd_samples_max
+        tx_drop_cyc = [0, ] * ncd_samples_max
+        cyc_idx = ncd_samples_max-1
+    
+        def __init__(self):
+            """
+            Initialize Dataif_Port object.
+            
+            """
+            super(Dataif_Port, self).__init__(self.name)
+            self.rxq_rebalanced = {}   
+
+    if not port_to_cls.has_key(port_name):
+        port_to_cls[port_name] = Dataif_Port
+
+    return Dataif_Port
+    
 class Dataif_Pmd(object):
     """
     Class to represent the PMD thread in the datapath of vswitch.
@@ -370,7 +428,8 @@ class Dataif_Pmd(object):
             return port
         
         # create new port and add it in port_map.
-        port = Dataif_Port(name)
+        port_cls = port_to_cls[name]
+        port = port_cls()
         self.port_map[name] = port
         
         # store other input options.
@@ -535,6 +594,8 @@ def get_pmd_rxqs(pmd_map):
     ----------
     pmd_map : dict
         mapping of pmd id and its Dataif_Pmd object.
+    port_map : dict
+        mapping of port name and its Port object.
         
     Raises
     ------
@@ -641,6 +702,68 @@ def get_pmd_rxqs(pmd_map):
             pmd.isolated = {'true':True, 'false':False}[sval[1:]]
             
     return pmd_map
+
+def get_port_stats():
+    """
+    Collect stats on every port in the datapath.
+    In every sampling iteration, these stats are stored
+    in corresponding sampling slots.
+
+    Raises
+    ------
+    OsCommandExc
+        if the given OS command did not succeed for some reason.
+    """
+
+    global port_to_id
+    global port_to_cls
+        
+    # retrieve required data from the vswitch.
+    cmd = "ovs-appctl dpctl/show -s"
+    data = util.exec_host_command(cmd)
+    if not data:
+        raise OsCommandExc("unable to collect data")
+        
+    # sname and sval stores parsed string's key and value.
+    sname, sval = None, None
+    # current port object to be used in every line under parse.
+    port = None
+
+    for line in data.splitlines():
+        if re.match(r'\s.*port\s(\d+):\s(\w+) *', line):
+            # In below matching line, we retrieve port id and name.
+            linesre = re.search(r'\s.*port\s(\d+):\s(\w+) *', line)
+            (pid, pname) = linesre.groups()
+            port_to_id[pname] = int(pid)
+
+            # If in mid of sampling, we should have port_to_cls having
+            # entry for this port name.
+            if port_to_cls.has_key(pname):
+                port = port_to_cls[pname]
+                assert(port.id == pid)
+                
+                # Store following stats in new sampling slot.
+                port.cyc_idx = (port.cyc_idx + 1) % ncd_samples_max
+                nlog.debug("port %s in iteration %d" %(port.name, port.cyc_idx))
+            else:                
+                # create new entry in port_to_cls for this port.
+                port = make_dataif_port(pname)
+                port.id = pid
+                nlog.debug("added port %s stats.." %pname)
+                
+        elif re.match(r'\s.*RX .*? dropped:(\d+) *', line):
+            # From other lines, we retrieve stats of the port.
+            linesre = re.search(r'\s.*RX .*? dropped:(\d+) *', line)
+            (drop, ) = linesre.groups()
+            port.rx_drop_cyc[port.cyc_idx] = int(drop)
+
+        elif re.match(r'\s.*TX .*? dropped:(\d+) *', line):
+            # From other lines, we retrieve stats of the port.
+            linesre = re.search(r'\s.*TX .*? dropped:(\d+) *', line)
+            (drop, ) = linesre.groups()
+            port.tx_drop_cyc[port.cyc_idx] = int(drop)
+                
+    return None
 
 def pmd_load(pmd):
     """
@@ -959,7 +1082,7 @@ def collect_data(pmd_map):
         mapping of pmd id and its Dataif_Pmd object.
     """
 
-    upd_port_to_id()
+    get_port_stats()
     upd_pmd_map = get_pmd_stats(pmd_map)
     return get_pmd_rxqs(upd_pmd_map)
 
