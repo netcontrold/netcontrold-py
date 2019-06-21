@@ -1096,6 +1096,16 @@ def pmd_need_rebalance(pmd_map):
 
     return False
 
+def port_drop_count(port):
+    """
+    Return packet drops from the port stats.
+
+    """
+    rx_sum = sum([j - i for i, j in zip(port.rx_drop_cyc[:-1], port.rx_drop_cyc[1:])])
+    tx_sum = sum([j - i for i, j in zip(port.tx_drop_cyc[:-1], port.tx_drop_cyc[1:])])
+
+    return (rx_sum + tx_sum)
+
 def collect_data(pmd_map):
     """
     Collect various stats and rxqs mapping of every pmd in the vswitch.
@@ -1241,6 +1251,13 @@ def ncd_main():
         pmd = pmd_map[pmd_id]
         nlog.info("pmd id %d load %d" %(pmd_id, pmd.pmd_load))
 
+    nlog.info("port drops initially:")
+    for pname in sorted(port_to_cls.keys()):
+       port = port_to_cls[pname]
+       ppm = (60 * port_drop_count(port))/ \
+               (ncd_sample_interval * (ncd_samples_max - 1))
+       nlog.info("port %s drop %d ppm" %(port.name, ppm))
+ 
     # begin rebalance dry run
     while (1):
         try:
@@ -1270,6 +1287,13 @@ def ncd_main():
                     nlog.info("pmd id %d load %d" %(pmd_id, pmd.pmd_load))
 
                 nlog.info("current pmd load variance: %d" %cur_var)
+                nlog.info("current port drops:")
+                for pname in sorted(port_to_cls.keys()):
+                    port = port_to_cls[pname]
+                    ppm = (60 * port_drop_count(port))/ \
+                            (ncd_sample_interval * (ncd_samples_max - 1))
+                    nlog.info("port %s drop %d ppm" %(port.name, ppm))
+ 
                 continue
 
             # compare previous and current state of pmds.
@@ -1335,6 +1359,13 @@ def ncd_main():
                 nlog.info("pmd id %d load %d" %(pmd_id, pmd.pmd_load))
 
             nlog.info("current pmd load variance: %d" %good_var)
+            nlog.info("current port drops:")
+            for pname in sorted(port_to_cls.keys()):
+                port = port_to_cls[pname]
+                ppm = (60 * port_drop_count(port))/ \
+                        (ncd_sample_interval * (ncd_samples_max - 1))
+                nlog.info("port %s drop %d ppm" %(port.name, ppm))
+ 
         except NcdShutdownExc:
             nlog.info("Exiting NCD ..")    
             sys.exit(1)
