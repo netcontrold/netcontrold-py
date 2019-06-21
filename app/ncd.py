@@ -242,7 +242,14 @@ def make_dataif_port(port_name=None):
     """
 
     global port_to_cls
-    
+   
+    class Meta(type):
+        def __repr__(cls):
+            if hasattr(cls, '__cls_repr__'):
+                return getattr(cls, '__cls_repr__')()
+            else:
+                super(Meta, cls).__repr__()
+ 
     # Inherit attributes of Port and create a new class.
     class Dataif_Port(Port):
         """
@@ -262,6 +269,8 @@ def make_dataif_port(port_name=None):
             map of PMDs that its each rxq will be associated with. 
         """
 
+        __metaclass__ = Meta
+
         name = port_name
         rx_drop_cyc = [0, ] * ncd_samples_max
         tx_drop_cyc = [0, ] * ncd_samples_max
@@ -274,6 +283,21 @@ def make_dataif_port(port_name=None):
             """
             super(Dataif_Port, self).__init__(self.name)
             self.rxq_rebalanced = {}   
+
+        @classmethod
+        def __cls_repr__(cls):
+            str = ""
+            str += "port %s\n" %cls.name
+            str += "port %s cyc_idx %d\n" %(cls.name, cls.cyc_idx)
+            for i in range(0, len(cls.rx_drop_cyc)):
+                elm = cls.rx_drop_cyc[i]
+                str += "port %s rx_drop_cyc[%d] %d\n" %(cls.name, i, elm)
+
+            for i in range(0, len(cls.tx_drop_cyc)):
+                elm = cls.tx_drop_cyc[i]
+                str += "port %s tx_drop_cyc[%d] %d\n" %(cls.name, i, elm)
+
+            return str
 
     if not port_to_cls.has_key(port_name):
         port_to_cls[port_name] = Dataif_Port
@@ -1120,6 +1144,7 @@ def rebalance_switch(pmd_map):
 def ncd_kill(signal, frame):
     nlog.info("Got signal %s, dump current state of PMDs .." %signal)
     nlog.info(frame.f_locals['pmd_map'])
+    nlog.info(port_to_cls)
     
     raise NcdShutdownExc
 
