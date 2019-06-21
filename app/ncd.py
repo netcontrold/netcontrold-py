@@ -1339,7 +1339,8 @@ def ncd_main():
                 nlog.info("no new optimization found ..")
 
             # reset collected data
-            pmd_map = {}
+            pmd_map.clear()
+            port_to_cls.clear()
             for i in range(0, ncd_samples_max+1):
                 pmd_map = collect_data(pmd_map)
                 time.sleep(ncd_sample_interval)
