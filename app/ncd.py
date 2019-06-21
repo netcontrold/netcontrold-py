@@ -259,8 +259,12 @@ def make_dataif_port(port_name=None):
         ----------
         name : string
             name of the port the class is created for.
+        rx_cyc : list
+            samples of packets by this port in RX.
         rx_drop_cyc : list
             samples of dropped packets by this port in RX.
+        tx_cyc : list
+            samples of packets by this port in TX.
         tx_drop_cyc : list
             samples of dropped packets by this port in TX.
         cyc_idx : int
@@ -272,7 +276,9 @@ def make_dataif_port(port_name=None):
         __metaclass__ = Meta
 
         name = port_name
+        rx_cyc = [0, ] * ncd_samples_max
         rx_drop_cyc = [0, ] * ncd_samples_max
+        tx_cyc = [0, ] * ncd_samples_max
         tx_drop_cyc = [0, ] * ncd_samples_max
         cyc_idx = ncd_samples_max-1
     
@@ -290,12 +296,16 @@ def make_dataif_port(port_name=None):
             str += "port %s\n" %cls.name
             str += "port %s cyc_idx %d\n" %(cls.name, cls.cyc_idx)
             for i in range(0, len(cls.rx_drop_cyc)):
-                elm = cls.rx_drop_cyc[i]
-                str += "port %s rx_drop_cyc[%d] %d\n" %(cls.name, i, elm)
+                rx = cls.rx_cyc[i]
+                rxd = cls.rx_drop_cyc[i]
+                str += "port %s rx_cyc[%d] %d rx_drop_cyc[%d] %d\n" \
+                        %(cls.name, i, rx, i, rxd)
 
             for i in range(0, len(cls.tx_drop_cyc)):
-                elm = cls.tx_drop_cyc[i]
-                str += "port %s tx_drop_cyc[%d] %d\n" %(cls.name, i, elm)
+                tx = cls.tx_cyc[i]
+                txd = cls.tx_drop_cyc[i]
+                str += "port %s tx_cyc[%d] %d tx_drop_cyc[%d] %d\n" \
+                        %(cls.name, i, tx, i, txd)
 
             return str
 
@@ -775,16 +785,18 @@ def get_port_stats():
                 port.id = pid
                 nlog.debug("added port %s stats.." %pname)
                 
-        elif re.match(r'\s.*RX .*? dropped:(\d+) *', line):
+        elif re.match(r'\s.*RX packets:(\d+) .*? dropped:(\d+) *', line):
             # From other lines, we retrieve stats of the port.
-            linesre = re.search(r'\s.*RX .*? dropped:(\d+) *', line)
-            (drop, ) = linesre.groups()
+            linesre = re.search(r'\s.*RX packets:(\d+) .*? dropped:(\d+) *', line)
+            (rx, drop, ) = linesre.groups()
+            port.rx_cyc[port.cyc_idx] = int(rx)
             port.rx_drop_cyc[port.cyc_idx] = int(drop)
 
-        elif re.match(r'\s.*TX .*? dropped:(\d+) *', line):
+        elif re.match(r'\s.*TX packets:(\d+) .*? dropped:(\d+) *', line):
             # From other lines, we retrieve stats of the port.
-            linesre = re.search(r'\s.*TX .*? dropped:(\d+) *', line)
-            (drop, ) = linesre.groups()
+            linesre = re.search(r'\s.*TX packets:(\d+) .*? dropped:(\d+) *', line)
+            (tx, drop, ) = linesre.groups()
+            port.tx_cyc[port.cyc_idx] = int(tx)
             port.tx_drop_cyc[port.cyc_idx] = int(drop)
                 
     return None
@@ -1096,15 +1108,22 @@ def pmd_need_rebalance(pmd_map):
 
     return False
 
-def port_drop_count(port):
+def port_drop_ppm(port):
     """
     Return packet drops from the port stats.
 
     """
-    rx_sum = sum([j - i for i, j in zip(port.rx_drop_cyc[:-1], port.rx_drop_cyc[1:])])
-    tx_sum = sum([j - i for i, j in zip(port.tx_drop_cyc[:-1], port.tx_drop_cyc[1:])])
+    rx_sum = sum([j - i for i, j in zip(port.rx_cyc[:-1], port.rx_cyc[1:])])
+    rxd_sum = sum([j - i for i, j in zip(port.rx_drop_cyc[:-1], port.rx_drop_cyc[1:])])
+    tx_sum = sum([j - i for i, j in zip(port.tx_cyc[:-1], port.tx_cyc[1:])])
+    txd_sum = sum([j - i for i, j in zip(port.tx_drop_cyc[:-1], port.tx_drop_cyc[1:])])
 
-    return (rx_sum + tx_sum)
+    psum = (rx_sum + tx_sum)
+    if psum == 0:
+        return 0
+
+    dsum = (rxd_sum + txd_sum)
+    return (1000000 * dsum)/psum
 
 def collect_data(pmd_map):
     """
@@ -1254,9 +1273,7 @@ def ncd_main():
     nlog.info("port drops initially:")
     for pname in sorted(port_to_cls.keys()):
        port = port_to_cls[pname]
-       ppm = (60 * port_drop_count(port))/ \
-               (ncd_sample_interval * (ncd_samples_max - 1))
-       nlog.info("port %s drop %d ppm" %(port.name, ppm))
+       nlog.info("port %s drop %d ppm" %(port.name, port_drop_ppm(port)))
  
     # begin rebalance dry run
     while (1):
@@ -1290,9 +1307,7 @@ def ncd_main():
                 nlog.info("current port drops:")
                 for pname in sorted(port_to_cls.keys()):
                     port = port_to_cls[pname]
-                    ppm = (60 * port_drop_count(port))/ \
-                            (ncd_sample_interval * (ncd_samples_max - 1))
-                    nlog.info("port %s drop %d ppm" %(port.name, ppm))
+                    nlog.info("port %s drop %d ppm" %(port.name, port_drop_ppm(port)))
  
                 continue
 
@@ -1363,9 +1378,7 @@ def ncd_main():
             nlog.info("current port drops:")
             for pname in sorted(port_to_cls.keys()):
                 port = port_to_cls[pname]
-                ppm = (60 * port_drop_count(port))/ \
-                        (ncd_sample_interval * (ncd_samples_max - 1))
-                nlog.info("port %s drop %d ppm" %(port.name, ppm))
+                nlog.info("port %s drop %d ppm" %(port.name, port_drop_ppm(port)))
  
         except NcdShutdownExc:
             nlog.info("Exiting NCD ..")    
