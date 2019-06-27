@@ -1,4 +1,0 @@
-include *.rst
-recursive-include app *.py
-recursive-include lib *.py
-recursive-include doc *
