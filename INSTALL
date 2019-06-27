@@ -1,0 +1,5 @@
+To build source distribution:
+    python setup.py sdist
+
+To build rpm distribution:
+    python setup.py bdist_rpm

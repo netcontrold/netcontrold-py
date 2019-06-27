@@ -1,0 +1,11 @@
+*.pyc
+*.pyo
+*~
+*.bak
+*.swp
+*.tar.*
+.project
+.pydevproject
+build
+dist
+netcontrold_py.egg-info

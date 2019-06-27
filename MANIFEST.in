@@ -1,0 +1,2 @@
+recursive-include netcontrold-py *.py
+recursive-include netcontrold-py *.rst
