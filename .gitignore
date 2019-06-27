@@ -8,4 +8,4 @@
 .pydevproject
 build
 dist
-netcontrold_py.egg-info
+netcontrold.egg-info

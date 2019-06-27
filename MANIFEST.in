@@ -1,2 +1,10 @@
-recursive-include netcontrold-py *.py
-recursive-include netcontrold-py *.rst
+recursive-include netcontrold *.py
+recursive-include netcontrold *.rst
+include ncd_ctl
+include AUTHORS
+include COPYING
+include INSTALL
+include MANIFEST.in
+include README.rst
+include setup.py
+recursive-include rhel *.service
