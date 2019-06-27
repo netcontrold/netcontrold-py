@@ -14,13 +14,13 @@ def version():
         distname = check_output(["rpm --eval '%{dist}'"], shell=True).strip()
     else:
         distname = ""
-    with open('netcontrold-py/__init__.py') as f:
+    with open('netcontrold/__init__.py') as f:
         pattern = r"{}\W*=\W*'([^']+)'".format("__version__")
         vstr = re.findall(pattern, f.read())[0]
         return vstr + distname
 
 
-setup(name='netcontrold-py',
+setup(name='netcontrold',
       version=version(),
       description='Network control daemon for Open_vSwitch',
       long_description=readme(),
@@ -35,7 +35,11 @@ setup(name='netcontrold-py',
       author='Gowrishankar Muthukrishnan',
       author_email='gmuthukr@redhat.com',
       license='Apache',
-      packages=['netcontrold-py'],
+      packages=['netcontrold'],
+      scripts=['ncd_ctl'],
+      data_files=[
+          ('/usr/lib/systemd/system', ['rhel/netcontrold.service'])
+      ],
       install_requires=['python'],
       include_package_data=True,
       zip_safe=False)

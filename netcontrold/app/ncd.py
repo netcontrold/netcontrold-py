@@ -15,29 +15,21 @@
 #  limitations under the License.
 #
 
+__all__ = ['ncd_main']
+
 # import system libraries
 import signal
 import time
 import argparse
 import copy
-
-# include NCD library
 import sys
-import os
+import logging
+from logging.handlers import RotatingFileHandler
 
-ncd_root = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))
-ncd_lib = os.path.join(ncd_root, 'lib')
-sys.path.insert(0, ncd_lib)
-
-try:
-    import config
-    import dataif
-    import logging
-    from logging.handlers import RotatingFileHandler
-    import util
-    import error
-except:
-    raise
+from netcontrold.lib import config
+from netcontrold.lib import dataif
+from netcontrold.lib import util
+from netcontrold.lib import error
 
 nlog = None
 
@@ -432,13 +424,13 @@ def rebalance_switch(pmd_map):
 
 def ncd_kill(signal, frame):
     nlog.critical("Got signal %s, dump current state of PMDs .." % signal)
-    nlog.info(frame.f_locals['pmd_map'])
-    nlog.info(dataif.port_to_cls)
+    nlog.debug(frame.f_locals['pmd_map'])
+    nlog.debug(dataif.port_to_cls)
 
     raise error.NcdShutdownExc
 
 
-def ncd_main():
+def ncd_main(argv):
     # input options
     argpobj = argparse.ArgumentParser(
         prog='ncd.py', description='NCD options:')
@@ -467,7 +459,7 @@ def ncd_main():
                          default=False,
                          help='debug logging (default: False)')
 
-    args = argpobj.parse_args()
+    args = argpobj.parse_args(argv)
 
     # set verbose level
     global nlog
@@ -675,5 +667,5 @@ def ncd_main():
 
 
 if __name__ == "__main__":
-    ncd_main()
+    ncd_main(sys.argv[1:])
     sys.exit(0)

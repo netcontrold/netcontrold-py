@@ -1,0 +1,14 @@
+[Unit]
+Description=Network control daemon for Open vSwitch
+After=ovs-vswitchd.service
+Requires=ovs-vswitchd.service
+ReloadPropagatedFrom=ovs-vswitchd.service
+AssertPathIsReadWrite=/var/log/ncd.log
+
+[Service]
+Type=forking
+Restart=on-failure
+ExecStart=/usr/bin/ncd_ctl start
+ExecStop=/usr/bin/ncd_ctl stop
+ExecReload=/usr/bin/ncd_ctl restart
+TimeoutSec=300
