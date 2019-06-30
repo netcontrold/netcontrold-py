@@ -41,3 +41,6 @@ ncd_vsw_wait_min = 20
 ncd_log_file = "/var/log/ncd.log"
 ncd_log_max_KB = 1024
 ncd_log_max_backup_n = 1
+
+# Minimum threshold (in ppm) for packet drop to call back debug actions.
+ncd_cb_pktdrop_min = 10000

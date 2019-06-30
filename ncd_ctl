@@ -18,7 +18,7 @@ if ((len(sys.argv) != 2) or
     sys.exit(1)
 
 main_srv = util.Service(ncd.ncd_main,
-                        ['-s', '10', '-q'],
+                        ['-s', '10', '-r', '-q'],
                         '/var/run/ncd.pid')
 
 if sys.argv[1] == 'start':
