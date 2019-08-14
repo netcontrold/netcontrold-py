@@ -720,9 +720,9 @@ def get_port_stats():
     port = None
 
     for line in data.splitlines():
-        if re.match(r'\s.*port\s(\d+):\s(\w+) *', line):
+        if re.match(r'\s.*port\s(\d+):\s([A-Za-z0-9_-]+) *', line):
             # In below matching line, we retrieve port id and name.
-            linesre = re.search(r'\s.*port\s(\d+):\s(\w+) *', line)
+            linesre = re.search(r'\s.*port\s(\d+):\s([A-Za-z0-9_-]+) *', line)
             (pid, pname) = linesre.groups()
             port_to_id[pname] = int(pid)
 
