@@ -618,7 +618,7 @@ def get_pmd_rxqs(pmd_map):
 
         elif re.match(r'\s.*port: .*', line):
             # From this line, we retrieve cpu usage of rxq.
-            linesre = re.search(r'\s.*port:\s(\w+)\s*'
+            linesre = re.search(r'\s.*port:\s([A-Za-z0-9_-]+)\s*'
                                 r'queue-id:\s*(\d+)\s*'
                                 r'pmd usage:\s*(\d+|NOT AVAIL)\s*?',
                                 line)
