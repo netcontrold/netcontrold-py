@@ -5,7 +5,16 @@ To build rpm distribution:
     python setup.py bdist_rpm
 
 To build docker distribution:
-    python setup.py bdist_rpm
+    # build rpm
+    docker build -t netcontrold29:build . -f Dockerfile.build
+    docker container create --name extract netcontrold29:build
+    docker container cp extract:/usr/src/netcontrold-py/dist/netcontrold-0.1.el7-1.noarch.rpm ./dist
+
+    docker container rm -f extract
+
+    # build container
     docker build -t netcontrold .
+
+    # run container
     docker run --name ncd --pid=host -v /etc/openvswitch:/etc/openvswitch -v /var/lib/vhost_sockets:/var/lib/vhost_sockets -v /var/run/openvswitch:/var/run/openvswitch -dit netcontrold:latest
     docker attach ncd [ctrl-p + ctrl-q to detach]
