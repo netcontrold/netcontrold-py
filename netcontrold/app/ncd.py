@@ -454,6 +454,11 @@ def ncd_main(argv):
                          default=False,
                          help='rebalance by idle-queue logic (default: False)')
 
+    argpobj.add_argument('-q', '--quiet',
+                         action='store_true',
+                         default=False,
+                         help='no logging in terminal (default: False)')
+
     argpobj.add_argument('-v', '--verbose',
                          action='store_true',
                          default=False,
@@ -483,7 +488,8 @@ def ncd_main(argv):
     nlog = logging.getLogger('ncd')
     nlog.setLevel(logging.DEBUG)
     nlog.addHandler(fh)
-    nlog.addHandler(ch)
+    if not args.quiet:
+        nlog.addHandler(ch)
 
     # set interval between each re-balance
     ncd_rebal_interval = args.rebalance_interval
