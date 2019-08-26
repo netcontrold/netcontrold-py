@@ -1,0 +1,5 @@
+FROM rhel7:latest
+ADD . /usr/src/netcontrold-py
+RUN yum install -y rpm-build
+RUN cd /usr/src/netcontrold-py && \
+    python setup.py bdist_rpm
