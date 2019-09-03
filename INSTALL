@@ -6,6 +6,7 @@ To build rpm distribution:
 
 To build docker distribution:
     # build rpm
+    cd docker
     docker build -t netcontrold29:build . -f Dockerfile.build
     docker container create --name extract netcontrold29:build
     mkdir -p dist
@@ -18,4 +19,19 @@ To build docker distribution:
 
     # run container
     docker run --name ncd --pid=host -v /etc/openvswitch:/etc/openvswitch -v /var/lib/vhost_sockets:/var/lib/vhost_sockets -v /var/run/openvswitch:/var/run/openvswitch -dit netcontrold29:latest
-    docker attach ncd [ctrl-p + ctrl-q to detach]
+    # stop ncd service in container
+    docker exec ncd ncd_ctl stop
+
+    # register docker image (quay.io for eg).
+    docker login quay.io
+    docker commit ncd29 quay.io/<user_id>/ncd29
+    docker push quay.io/<user_id>/ncd29
+ 
+To deploy from Redhat Openstack Undercloud:
+    cd docker
+    tripleo-ansible-inventory --static-yaml-inventory hosts.yaml
+    ansible-playbook -i hosts.yaml deploy.yaml
+
+To attach running service:
+    docker attach --sig-proxy=false ncd29
+
