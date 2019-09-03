@@ -1,5 +1,5 @@
 - name: playbook for netcontrold on compute nodes
-  hosts: overcloud-computeovsdpdksriov-0
+  hosts: neutron_ovs_dpdk_agent:ComputeOvsDpdk:ComputeOvsDpdkSriov
   remote_user: heat-admin
   become: yes
   become_method: sudo
