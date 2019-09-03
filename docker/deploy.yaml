@@ -1,0 +1,17 @@
+- name: playbook for netcontrold on compute nodes
+  hosts: overcloud-computeovsdpdksriov-0
+  remote_user: heat-admin
+  become: yes
+  become_method: sudo
+
+  tasks:
+    - name: run netcontrold container
+      docker_container:
+        name: ncd29
+        image: quay.io/gshankarmk/ncd29:latest
+        volumes:
+          - /etc/openvswitch:/etc/openvswitch
+          - /var/lib/vhost_sockets:/var/lib/vhost_sockets
+          - /var/run/openvswitch:/var/run/openvswitch
+        pid_mode: host
+        state: started
