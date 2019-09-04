@@ -36,7 +36,7 @@ setup(name='netcontrold',
       author_email='gmuthukr@redhat.com',
       license='Apache',
       packages=['netcontrold'],
-      scripts=['ncd_ctl'],
+      scripts=['ncd_ctl', 'ncd_watch'],
       data_files=[
           ('/usr/lib/systemd/system', ['rhel/netcontrold.service'])
       ],

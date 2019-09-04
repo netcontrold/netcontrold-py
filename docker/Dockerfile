@@ -7,4 +7,4 @@ RUN yum install -y --enablerepo="rhel-7-fast-datapath-rpms" openvswitch && \
     yum install -y ./netcontrold-* && \
     yum clean all
 
-ENTRYPOINT ["sh", "-c", "/usr/bin/ncd_ctl start && tail -f /var/log/ncd.log"]
+ENTRYPOINT ["sh", "-c", "/usr/bin/ncd_watch"]
