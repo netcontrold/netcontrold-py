@@ -17,6 +17,7 @@
 __all__ = ['get_pmd_stats',
            'get_pmd_rxqs',
            'get_port_stats',
+           'Context'
            ]
 
 import re
@@ -26,10 +27,14 @@ import logging
 import config
 from error import ObjCreateExc, ObjParseExc, ObjConsistencyExc, OsCommandExc
 
-port_to_id = {}
-port_to_cls = {}
 
-nlog = logging.getLogger('ncd')
+class Context():
+    pmd_map = {}
+    port_to_id = {}
+    port_to_cls = {}
+    nlog = None
+    
+nlog = Context.nlog
 
 
 class Rxq(object):
@@ -214,8 +219,6 @@ def make_dataif_port(port_name=None):
     Factory method to create a class with Port attributes for a given port.
     """
 
-    global port_to_cls
-
     class Meta(type):
 
         def __repr__(cls):
@@ -283,8 +286,8 @@ def make_dataif_port(port_name=None):
 
             return pstr
 
-    if port_name not in port_to_cls:
-        port_to_cls[port_name] = Dataif_Port
+    if port_name not in Context.port_to_cls:
+        Context.port_to_cls[port_name] = Dataif_Port
 
     return Dataif_Port
 
@@ -437,7 +440,7 @@ class Dataif_Pmd(object):
             return port
 
         # create new port and add it in port_map.
-        port_cls = port_to_cls[name]
+        port_cls = Context.port_to_cls[name]
         port = port_cls()
         self.port_map[name] = port
 
@@ -504,7 +507,7 @@ def get_pmd_stats(pmd_map):
         if the given OS command did not succeed for some reason.
     """
 
-    global nlog
+    nlog = Context.nlog
 
     # retrieve required data from the vswitch.
     cmd = "ovs-appctl dpif-netdev/pmd-stats-show"
@@ -588,7 +591,7 @@ def get_pmd_rxqs(pmd_map):
         if the given OS command did not succeed for some reason.
     """
 
-    global nlog
+    nlog = Context.nlog
 
     # retrieve required data from the vswitch.
     cmd = "ovs-appctl dpif-netdev/pmd-rxq-show"
@@ -644,7 +647,7 @@ def get_pmd_rxqs(pmd_map):
                 port = pmd.add_port(pname)
 
             # update port attributes now.
-            port.id = port_to_id[pname]
+            port.id = Context.port_to_id[pname]
             port.numa_id = pmd.numa_id
 
             # check whether this rxq was being rebalanced.
@@ -706,9 +709,7 @@ def get_port_stats():
         if the given OS command did not succeed for some reason.
     """
 
-    global port_to_id
-    global port_to_cls
-    global nlog
+    nlog = Context.nlog
 
     # retrieve required data from the vswitch.
     cmd = "ovs-appctl dpctl/show -s"
@@ -724,12 +725,12 @@ def get_port_stats():
             # In below matching line, we retrieve port id and name.
             linesre = re.search(r'\s.*port\s(\d+):\s([A-Za-z0-9_-]+) *', line)
             (pid, pname) = linesre.groups()
-            port_to_id[pname] = int(pid)
+            Context.port_to_id[pname] = int(pid)
 
             # If in mid of sampling, we should have port_to_cls having
             # entry for this port name.
-            if pname in port_to_cls:
-                port = port_to_cls[pname]
+            if pname in Context.port_to_cls:
+                port = Context.port_to_cls[pname]
                 assert(port.id == pid)
 
                 # Store following stats in new sampling slot.

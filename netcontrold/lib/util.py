@@ -15,6 +15,7 @@
 #
 
 __all__ = ['exec_host_command',
+           'exists',
            'variance',
            ]
 
@@ -23,6 +24,7 @@ import os
 import sys
 import signal
 import subprocess
+import distutils.spawn
 
 from netcontrold.lib import error
 
@@ -34,6 +36,10 @@ def exec_host_command(cmd):
         print ("Unable to execute command %s: %s" % (cmd, e))
         return 1
     return ret
+
+
+def exists(file):
+    return distutils.spawn.find_executable(file) is not None
 
 
 def variance(_list):
