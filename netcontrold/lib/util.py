@@ -21,12 +21,16 @@ __all__ = ['exec_host_command',
 
 # Import standard modules
 import os
+import re
 import sys
+import socket
 import signal
 import subprocess
 import distutils.spawn
+import threading
 
 from netcontrold.lib import error
+from netcontrold.lib import config
 
 
 def exec_host_command(cmd):
@@ -47,6 +51,18 @@ def variance(_list):
     return sum((item - mean) ** 2 for item in _list) / len(_list)
 
 
+class Thread(threading.Thread):
+    """
+    Class to represent thread instance.
+    """
+
+    timeout = 60
+        
+    def __init__(self, shuteventobj):
+        threading.Thread.__init__(self)
+        self.ncd_shutdown = shuteventobj
+        
+    
 class Service:
     """
     Class to represent Service instance.
@@ -157,3 +173,74 @@ class Service:
         """
         self.stop()
         self.start()
+
+    def rebalance(self, rebal_flag):
+        """
+        Enable or disable rebalance mode.
+        """
+        sock_file = config.ncd_socket
+        
+        if not os.path.exists(sock_file):
+            sys.stderr.write("socket %s not found.. exiting.\n" % sock_file)
+            sys.exit(1)
+            
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.connect(sock_file)
+        except socket.error, e:
+            sys.stderr.write("unable to connect %s: %s\n" % (sock_file, e))
+            sys.exit(1)
+        
+        try:
+            if rebal_flag:
+                sock.sendall("CTLD_REBAL_ON")
+            else:
+                sock.sendall("CTLD_REBAL_OFF")
+            
+            ack_len = 0
+            while (ack_len < len("CTLD_ACK")):
+                data = sock.recv(64)
+                ack_len += len(data)
+                
+        finally:
+            sock.close()
+            
+        return 0
+
+    def status(self):
+        """
+        Query current status of netcontrold.
+        """
+        sock_file = config.ncd_socket
+        
+        if not os.path.exists(sock_file):
+            sys.stderr.write("socket %s not found.. exiting.\n" % sock_file)
+            sys.exit(1)
+            
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.connect(sock_file)
+        except socket.error, e:
+            sys.stderr.write("unable to connect %s: %s\n" % (sock_file, e))
+            sys.exit(1)
+        
+        try:
+            sock.sendall("CTLD_STATUS")
+            ack_len = 0
+            while (ack_len < len("CTLD_DATA_ACK XXXXXX")):
+                data = sock.recv(len("CTLD_DATA_ACK XXXXXX"))
+                ack_len += len(data)
+                        
+            status_len = int(re.findall('\d+', data)[0])
+            data_len = 0
+            while (data_len < status_len):
+                data = sock.recv(status_len)
+                data_len += len(data)
+            
+            sys.stdout.write(data)
+            
+        finally:
+            sock.close()
+            
+        return 0
+    

@@ -23,8 +23,13 @@ import time
 import argparse
 import copy
 import sys
+import socket
+import os
 import logging
+import threading
 from logging.handlers import RotatingFileHandler
+from Queue import Queue
+from datetime import datetime
 
 from netcontrold.lib import config
 from netcontrold.lib import dataif
@@ -32,12 +37,84 @@ from netcontrold.lib import util
 from netcontrold.lib import error
 
 class RebalContext(dataif.Context):
+    rebal_mode = False
     rebal_tick = 0
     rebal_tick_n = 0
+    rebal_stat = {}
     apply_rebal = False
     
     
 nlog = None
+
+
+class CtlDThread(util.Thread):
+    def __init__(self, eobj):
+        util.Thread.__init__(self, eobj)
+        
+    def run(self):
+        sock_file = config.ncd_socket
+        
+        try:
+            os.unlink(sock_file)
+        except OSError:
+            if os.path.exists(sock_file):
+                raise
+            
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        
+        nlog.info("starting ctld on %s" % sock_file)
+        sock.bind(sock_file)
+        sock.listen(1)
+               
+        while (not self.ncd_shutdown.is_set()):
+            conn, client = sock.accept()
+            
+            try:
+                cmd = conn.recv(16)
+                
+                rctx = RebalContext
+                ack_msg = ""
+                if cmd == 'CTLD_REBAL_ON':
+                    if not rctx.rebal_mode:
+                        nlog.info("turning on rebalance mode ..")
+                        rctx.rebal_mode = True
+                    else:
+                        nlog.info("rebalance mode already on ..!")
+                        
+                    conn.sendall("CTLD_ACK")
+                    
+                elif cmd == 'CTLD_REBAL_OFF':
+                    if rctx.rebal_mode:
+                        nlog.info("turning off rebalance mode ..")
+                        rctx.rebal_mode = False
+                    else:
+                        nlog.info("rebalance mode already off ..!")
+                        
+                    conn.sendall("CTLD_ACK")
+                
+                elif cmd == 'CTLD_STATUS':
+                    status = "rebalance mode:"
+                    if rctx.rebal_mode:
+                        status += " on\n"
+                    else:
+                        status += " off\n"
+
+                    status += "rebalance events:\n"
+                    for i in sorted(rctx.rebal_stat.keys()):
+                        status += "%-4s: %s\n" % (i, rctx.rebal_stat[i])
+
+                    conn.sendall("CTLD_DATA_ACK %6d" % (len(status)))
+                    conn.sendall(status)
+
+                else:
+                    nlog.info("unknown control command %s" % cmd)
+                    break
+                    
+            finally:
+                conn.close()
+       
+        return
+
 
 def pmd_load(pmd):
     """
@@ -568,22 +645,37 @@ def ncd_main(argv):
         # restrict only one dry run for rr mode.
         ncd_rebal_n = 1
     
+    # set check point to call rebalance in vswitch
+    rctx = RebalContext 
+    rctx.rebal_tick_n = ncd_rebal_interval / ncd_sample_interval
+
+    # rebalance dryrun iteration
+    rebal_i = 0
+
+    
     if ncd_rebal:
         # adjust length of the samples counter
         config.ncd_samples_max = min(
             ncd_rebal_interval / ncd_sample_interval, config.ncd_samples_max)
 
-        # rebalance dryrun iteration
-        rebal_i = 0
+        rctx.rebal_mode = True
 
-    # set check point to call rebalance in vswitch
-    rctx = RebalContext 
-    rctx.rebal_tick_n = ncd_rebal_interval / ncd_sample_interval
-    
     # set signal handler to abort ncd
     signal.signal(signal.SIGINT, ncd_kill)
     signal.signal(signal.SIGTERM, ncd_kill)
+
+    # start ctld thread to monitor control command and dispatch
+    # necessary action.
+    shutdown_event = threading.Event()
+    tobj = CtlDThread(shutdown_event)
+    tobj.daemon = True
     
+    try:
+        tobj.start()
+    except threading.ThreadError, e:
+        nlog.info("failed to start ctld thread ..")
+        sys.exit(1)
+        
     # The first sample do not have previous sample to calculate
     # current difference (as we use this later). So, do one extra
     # sampling to over write first sample and rotate left on the
@@ -595,26 +687,26 @@ def ncd_main(argv):
             nlog.info("required at least two pmds to check rebalance..")
             sys.exit(1)
 
-        good_var = pmd_load_variance(pmd_map)
-        nlog.info("initial pmd load variance: %d" % good_var)
-        pmd_map_balanced = copy.deepcopy(pmd_map)
+    good_var = pmd_load_variance(pmd_map)
+    nlog.info("initial pmd load variance: %d" % good_var)
+    pmd_map_balanced = copy.deepcopy(pmd_map)
 
-        nlog.info("initial pmd load:")
-        for pmd_id in sorted(pmd_map.keys()):
-            pmd = pmd_map[pmd_id]
-            nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
+    nlog.info("initial pmd load:")
+    for pmd_id in sorted(pmd_map.keys()):
+        pmd = pmd_map[pmd_id]
+        nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
 
-        nlog.info("initial port drops:")
-        for pname in sorted(ctx.port_to_cls.keys()):
-            port = ctx.port_to_cls[pname]
-            nlog.info("port %s drop %d ppm" % (port.name, port_drop_ppm(port)))
+    nlog.info("initial port drops:")
+    for pname in sorted(ctx.port_to_cls.keys()):
+        port = ctx.port_to_cls[pname]
+        nlog.info("port %s drop %d ppm" % (port.name, port_drop_ppm(port)))
 
     # begin rebalance dry run
     while (1):
         try:
             # dry-run only if atleast one pmd over loaded.
             # or, atleast in mid of dry-runs.
-            if ncd_rebal: 
+            if rctx.rebal_mode: 
                 if (pmd_need_rebalance(pmd_map) or rebal_i):
                     # dry run on collected stats
                     pmd_map = rebalance_dryrun(pmd_map)
@@ -623,7 +715,7 @@ def ncd_main(argv):
             # collect samples of pmd and rxq stats.
             collect_data(config.ncd_samples_max, ncd_sample_interval)
 
-            if ncd_debug and not ncd_rebal:
+            if ncd_debug and not rebal_i:
                 pmd_cb_list = []
                 for pname in sorted(ctx.port_to_cls.keys()):
                     port = ctx.port_to_cls[pname]
@@ -643,11 +735,11 @@ def ncd_main(argv):
                     data = util.exec_host_command(cmd)
                     nlog.info(data)
                         
-            if ncd_rebal:
+            if rctx.rebal_mode:
                 cur_var = pmd_load_variance(pmd_map)
 
             # if no dry-run, go back to collect data again.
-            if ncd_rebal and not rebal_i:
+            if rctx.rebal_mode and not rebal_i:
                 nlog.info("no dryrun done performed. current pmd load:")
                 for pmd_id in sorted(pmd_map.keys()):
                     pmd = pmd_map[pmd_id]
@@ -662,7 +754,7 @@ def ncd_main(argv):
 
                 continue
 
-            if ncd_rebal:
+            if rctx.rebal_mode and rebal_i:
                 # compare previous and current state of pmds.
                 nlog.info("pmd load variance: best %d, dry run(%d) %d" %
                           (good_var, rebal_i, cur_var))
@@ -690,6 +782,7 @@ def ncd_main(argv):
                     if (rctx.rebal_tick > rctx.rebal_tick_n):
                         rctx.rebal_tick = 0
                         cmd = rebalance_switch(pmd_map_balanced)
+                        rctx.rebal_stat[len(rctx.rebal_stat)] = datetime.now()
                         nlog.info(
                             "vswitch command for current optimization is: %s"
                             % cmd)
@@ -736,9 +829,11 @@ def ncd_main(argv):
 
         except error.NcdShutdownExc:
             nlog.info("Exiting NCD ..")
+            tobj.ncd_shutdown.set()
             sys.exit(1)
 
-
+    tobj.join()
+        
 if __name__ == "__main__":
     ncd_main(sys.argv[1:])
     sys.exit(0)

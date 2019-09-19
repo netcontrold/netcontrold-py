@@ -44,3 +44,6 @@ ncd_log_max_backup_n = 1
 
 # Minimum threshold (in ppm) for packet drop to call back debug actions.
 ncd_cb_pktdrop_min = 10000
+
+# Unix socket file
+ncd_socket = "/var/run/ncd_ctrld.sock"
