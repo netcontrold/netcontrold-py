@@ -57,12 +57,12 @@ class Thread(threading.Thread):
     """
 
     timeout = 60
-        
+
     def __init__(self, shuteventobj):
         threading.Thread.__init__(self)
         self.ncd_shutdown = shuteventobj
-        
-    
+
+
 class Service:
     """
     Class to represent Service instance.
@@ -179,32 +179,32 @@ class Service:
         Enable or disable rebalance mode.
         """
         sock_file = config.ncd_socket
-        
+
         if not os.path.exists(sock_file):
             sys.stderr.write("socket %s not found.. exiting.\n" % sock_file)
             sys.exit(1)
-            
+
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             sock.connect(sock_file)
         except socket.error, e:
             sys.stderr.write("unable to connect %s: %s\n" % (sock_file, e))
             sys.exit(1)
-        
+
         try:
             if rebal_flag:
                 sock.sendall("CTLD_REBAL_ON")
             else:
                 sock.sendall("CTLD_REBAL_OFF")
-            
+
             ack_len = 0
             while (ack_len < len("CTLD_ACK")):
                 data = sock.recv(64)
                 ack_len += len(data)
-                
+
         finally:
             sock.close()
-            
+
         return 0
 
     def status(self):
@@ -212,35 +212,34 @@ class Service:
         Query current status of netcontrold.
         """
         sock_file = config.ncd_socket
-        
+
         if not os.path.exists(sock_file):
             sys.stderr.write("socket %s not found.. exiting.\n" % sock_file)
             sys.exit(1)
-            
+
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             sock.connect(sock_file)
         except socket.error, e:
             sys.stderr.write("unable to connect %s: %s\n" % (sock_file, e))
             sys.exit(1)
-        
+
         try:
             sock.sendall("CTLD_STATUS")
             ack_len = 0
             while (ack_len < len("CTLD_DATA_ACK XXXXXX")):
                 data = sock.recv(len("CTLD_DATA_ACK XXXXXX"))
                 ack_len += len(data)
-                        
+
             status_len = int(re.findall('\d+', data)[0])
             data_len = 0
             while (data_len < status_len):
                 data = sock.recv(status_len)
                 data_len += len(data)
-            
+
             sys.stdout.write(data)
-            
+
         finally:
             sock.close()
-            
+
         return 0
-    
