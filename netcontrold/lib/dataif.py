@@ -22,7 +22,6 @@ __all__ = ['get_pmd_stats',
 
 import re
 import util
-import logging
 
 import config
 from error import ObjCreateExc, ObjParseExc, ObjConsistencyExc, OsCommandExc
@@ -33,7 +32,8 @@ class Context():
     port_to_id = {}
     port_to_cls = {}
     nlog = None
-    
+
+
 nlog = Context.nlog
 
 

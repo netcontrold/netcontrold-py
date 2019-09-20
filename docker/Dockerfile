@@ -1,8 +1,8 @@
 FROM rhel7:latest
-LABEL version=0.1
+LABEL version=0.2
 LABEL maintainer="Gowrishankar Muthukrishnan <gmuthukr@redhat.com>"
 
-COPY dist/netcontrold-0.1.el7-1.noarch.rpm ./
+COPY dist/netcontrold-0.2.el7-1.noarch.rpm ./
 RUN yum install -y --enablerepo="rhel-7-fast-datapath-rpms" openvswitch && \
     yum install -y ./netcontrold-* && \
     yum clean all
