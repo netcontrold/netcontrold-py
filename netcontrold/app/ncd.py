@@ -92,6 +92,14 @@ class CtlDThread(util.Thread):
 
                     conn.sendall("CTLD_ACK")
 
+                elif cmd == 'CTLD_REBAL_CNT':
+                    n = 0
+                    if rctx.rebal_mode:
+                        n = len(rctx.rebal_stat)
+
+                    conn.sendall("CTLD_DATA_ACK %6d" % (len(str(n))))
+                    conn.sendall(str(n))
+
                 elif cmd == 'CTLD_STATUS':
                     status = "rebalance mode:"
                     if rctx.rebal_mode:
@@ -101,14 +109,13 @@ class CtlDThread(util.Thread):
 
                     status += "rebalance events:\n"
                     for i in sorted(rctx.rebal_stat.keys()):
-                        status += "%-4s: %s\n" % (i, rctx.rebal_stat[i])
+                        status += "%-4s: %s\n" % (i+1, rctx.rebal_stat[i])
 
                     conn.sendall("CTLD_DATA_ACK %6d" % (len(status)))
                     conn.sendall(status)
 
                 else:
                     nlog.info("unknown control command %s" % cmd)
-                    break
 
             finally:
                 conn.close()
