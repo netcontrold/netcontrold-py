@@ -549,7 +549,7 @@ def ncd_main(argv):
     deb_group.add_argument('-d', '--debug',
                            required=False,
                            action='store_true',
-                           default=True,
+                           default=False,
                            help='operate in debug mode',
                            )
 
@@ -562,7 +562,7 @@ def ncd_main(argv):
     reb_group.add_argument('-r', '--rebalance',
                            required=False,
                            action='store_true',
-                           default=False,
+                           default=True,
                            help="operate in rebalance mode",
                            )
 
