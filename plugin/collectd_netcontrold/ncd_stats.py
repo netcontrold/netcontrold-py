@@ -6,6 +6,7 @@ from netcontrold.lib import config
 
 SOCKET = config.ncd_socket
 
+
 def config_func(config):
     for node in config.children:
         key = node.key
@@ -16,6 +17,7 @@ def config_func(config):
             collectd.info('ncd_stats plugin: using socket %s' % SOCKET)
         else:
             collectd.info('ncd_stats plugin: unknown config key "%s"' % key)
+
 
 def read_func():
     if not os.path.exists(SOCKET):
@@ -49,6 +51,7 @@ def read_func():
     val = collectd.Values(type='count')
     val.plugin = 'ncd_stats'
     val.dispatch(values=[data])
+
 
 collectd.register_config(config_func)
 collectd.register_read(read_func)
