@@ -44,6 +44,10 @@ class RebalContext(dataif.Context):
     apply_rebal = False
 
 
+class DebugContext(dataif.Context):
+    debug_mode = False
+
+
 nlog = None
 
 
@@ -74,7 +78,27 @@ class CtlDThread(util.Thread):
                 cmd = conn.recv(16)
 
                 rctx = RebalContext
-                if cmd == 'CTLD_REBAL_ON':
+                dctx = DebugContext
+
+                if cmd == 'CTLD_DEBUG_ON':
+                    if not dctx.debug_mode:
+                        nlog.info("turning on debug mode ..")
+                        dctx.debug_mode = True
+                    else:
+                        nlog.info("debug mode already on ..!")
+
+                    conn.sendall("CTLD_ACK")
+
+                elif cmd == 'CTLD_DEBUG_OFF':
+                    if dctx.debug_mode:
+                        nlog.info("turning off debug mode ..")
+                        dctx.debug_mode = False
+                    else:
+                        nlog.info("debug mode already off ..!")
+
+                    conn.sendall("CTLD_ACK")
+
+                elif cmd == 'CTLD_REBAL_ON':
                     if not rctx.rebal_mode:
                         nlog.info("turning on rebalance mode ..")
                         rctx.rebal_mode = True
@@ -101,7 +125,13 @@ class CtlDThread(util.Thread):
                     conn.sendall(str(n))
 
                 elif cmd == 'CTLD_STATUS':
-                    status = "rebalance mode:"
+                    status = "debug mode:"
+                    if dctx.debug_mode:
+                        status += " on\n"
+                    else:
+                        status += " off\n"
+
+                    status += "rebalance mode:"
                     if rctx.rebal_mode:
                         status += " on\n"
                     else:
@@ -109,7 +139,7 @@ class CtlDThread(util.Thread):
 
                     status += "rebalance events:\n"
                     for i in sorted(rctx.rebal_stat.keys()):
-                        status += "%-4s: %s\n" % (i+1, rctx.rebal_stat[i])
+                        status += "%-4s: %s\n" % (i + 1, rctx.rebal_stat[i])
 
                     conn.sendall("CTLD_DATA_ACK %6d" % (len(status)))
                     conn.sendall(status)
@@ -673,6 +703,10 @@ def ncd_main(argv):
     signal.signal(signal.SIGINT, ncd_kill)
     signal.signal(signal.SIGTERM, ncd_kill)
 
+    dctx = DebugContext
+    if ncd_debug:
+        dctx.debug_mode = True
+
     # start ctld thread to monitor control command and dispatch
     # necessary action.
     shutdown_event = threading.Event()
@@ -724,7 +758,7 @@ def ncd_main(argv):
             # collect samples of pmd and rxq stats.
             collect_data(config.ncd_samples_max, ncd_sample_interval)
 
-            if ncd_debug and not rebal_i:
+            if dctx.debug_mode and not rebal_i:
                 pmd_cb_list = []
                 for pname in sorted(ctx.port_to_cls.keys()):
                     port = ctx.port_to_cls[pname]
@@ -839,7 +873,7 @@ def ncd_main(argv):
                     nlog.info("port %s drop %d ppm" %
                               (port.name, port_drop_ppm(port)))
 
-                if ncd_debug and not rebal_i:
+                if dctx.debug_mode and not rebal_i:
                     pmd_cb_list = []
                     for pname in sorted(ctx.port_to_cls.keys()):
                         port = ctx.port_to_cls[pname]

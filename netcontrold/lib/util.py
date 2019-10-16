@@ -207,6 +207,39 @@ class Service:
 
         return 0
 
+    def debug(self, dbg_flag):
+        """
+        Enable or disable debug mode.
+        """
+        sock_file = config.ncd_socket
+
+        if not os.path.exists(sock_file):
+            sys.stderr.write("socket %s not found.. exiting.\n" % sock_file)
+            sys.exit(1)
+
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.connect(sock_file)
+        except socket.error, e:
+            sys.stderr.write("unable to connect %s: %s\n" % (sock_file, e))
+            sys.exit(1)
+
+        try:
+            if dbg_flag:
+                sock.sendall("CTLD_DEBUG_ON")
+            else:
+                sock.sendall("CTLD_DEBUG_OFF")
+
+            ack_len = 0
+            while (ack_len < len("CTLD_ACK")):
+                data = sock.recv(64)
+                ack_len += len(data)
+
+        finally:
+            sock.close()
+
+        return 0
+
     def status(self):
         """
         Query current status of netcontrold.
