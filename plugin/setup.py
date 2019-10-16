@@ -1,5 +1,4 @@
 from setuptools import setup
-from distutils.command.check import check
 import re
 import sys
 from subprocess import check_output
