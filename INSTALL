@@ -9,7 +9,7 @@ To build docker distribution:
     docker build -t netcontrold29:build . -f docker/Dockerfile.build
     docker container create --name extract netcontrold29:build
     mkdir -p dist
-    docker container cp extract:/usr/src/netcontrold-py/dist/netcontrold-0.2.el7-1.noarch.rpm ./dist/
+    docker container cp extract:/usr/src/netcontrold-py/dist/netcontrold-0.3.el7-1.noarch.rpm ./dist/
 
     docker container rm -f extract
 
