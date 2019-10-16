@@ -12,7 +12,7 @@ from netcontrold.lib import util
 
 USAGE = "ncd_ctl [start/stop/restart/status"\
         "/rebalance-on/rebalance-off" \
-        "/debug-on/debug-off\n"
+        "/debug-on/debug-off]\n"
 
 if ((len(sys.argv) != 2) or
         (sys.argv[1] not in ('start', 'stop', 'restart', 'status', 
