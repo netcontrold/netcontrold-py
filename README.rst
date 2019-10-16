@@ -24,8 +24,8 @@ Features
 
 Usage
 -----
-ncd_ctl is CLI to control Netcontrold daemon process.
-..
-..
-  ncd_ctl [start/stop/restart/status/rebalance-on/rebalance-off/debug-on/debug-off]
-  
+
++-----------------------------------------------------------------------------------+
+|  ncd_ctl [start/stop/restart/status/rebalance-on/rebalance-off/debug-on/debug-off]|
++-----------------------------------------------------------------------------------+
+
