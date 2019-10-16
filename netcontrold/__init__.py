@@ -1,4 +1,4 @@
-__version__ = '0.3'
+__version__ = '1.0'
 VERSION = __version__
 
 __all__ = ['app', 'lib']

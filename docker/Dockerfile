@@ -1,5 +1,5 @@
 FROM rhel7:latest
-LABEL version=0.3
+LABEL version=1.0
 LABEL maintainer="Gowrishankar Muthukrishnan <gmuthukr@redhat.com>"
 
 COPY dist/netcontrold-0.3.el7-1.noarch.rpm ./

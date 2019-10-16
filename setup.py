@@ -22,7 +22,7 @@ def version():
 
 setup(name='netcontrold',
       version=version(),
-      description='Network control daemon for Open_vSwitch',
+      description='Network control daemon for Open_vSwitch ',
       long_description=readme(),
       classifiers=[
           'Development Status :: 3 - Alpha',
