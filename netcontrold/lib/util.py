@@ -35,8 +35,8 @@ from netcontrold.lib import config
 
 def exec_host_command(cmd):
     try:
-        ret = subprocess.check_output(cmd.split())
-    except subprocess.CalledProcessError, e:
+        ret = subprocess.check_output(cmd.split()).decode()
+    except subprocess.CalledProcessError as e:
         print ("Unable to execute command %s: %s" % (cmd, e))
         return 1
     return ret
@@ -82,7 +82,7 @@ class Service:
             process ID file.
         """
         if not cb:
-            print "Function callback can not be empty to start new service."
+            print("Function callback can not be empty to start new service.")
             sys.exit(1)
 
         self.service_cb = cb
@@ -100,7 +100,7 @@ class Service:
         try:
             sys.argv[0] = 'ncd'
             child = os.fork()
-        except OSError, e:
+        except OSError as e:
             sys.stderr.write("Unable to create daemon (%s)\n" % e.strerror)
             return 1
 
@@ -157,7 +157,7 @@ class Service:
         pid = int(fh.read().strip())
         try:
             os.kill(pid, signal.SIGTERM)
-        except OSError, e:
+        except OSError as e:
             if not str(e).find("No such process"):
                 sys.stderr.write("unable to kill %d\n" % pid)
                 sys.exit(1)
@@ -187,7 +187,7 @@ class Service:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             sock.connect(sock_file)
-        except socket.error, e:
+        except socket.error as e:
             sys.stderr.write("unable to connect %s: %s\n" % (sock_file, e))
             sys.exit(1)
 
@@ -220,7 +220,7 @@ class Service:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             sock.connect(sock_file)
-        except socket.error, e:
+        except socket.error as e:
             sys.stderr.write("unable to connect %s: %s\n" % (sock_file, e))
             sys.exit(1)
 
@@ -253,7 +253,7 @@ class Service:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             sock.connect(sock_file)
-        except socket.error, e:
+        except socket.error as e:
             sys.stderr.write("unable to connect %s: %s\n" % (sock_file, e))
             sys.exit(1)
 

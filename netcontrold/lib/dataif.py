@@ -21,10 +21,10 @@ __all__ = ['get_pmd_stats',
            ]
 
 import re
-import util
+from netcontrold.lib import util
 
-import config
-from error import ObjCreateExc, ObjParseExc, ObjConsistencyExc, OsCommandExc
+from netcontrold.lib import config
+from netcontrold.lib.error import ObjCreateExc, ObjParseExc, ObjConsistencyExc, OsCommandExc
 
 
 class Context():
@@ -98,7 +98,7 @@ class Dataif_Rxq(Rxq):
         super(Dataif_Rxq, self).__init__(_id)
 
         self.pmd = None
-        self.cpu_cyc = [0, ] * config.ncd_samples_max
+        self.cpu_cyc = [0, ] * int(config.ncd_samples_max)
 
 
 class Port(object):
@@ -253,11 +253,11 @@ def make_dataif_port(port_name=None):
         __metaclass__ = Meta
 
         name = port_name
-        rx_cyc = [0, ] * config.ncd_samples_max
-        rx_drop_cyc = [0, ] * config.ncd_samples_max
-        tx_cyc = [0, ] * config.ncd_samples_max
-        tx_drop_cyc = [0, ] * config.ncd_samples_max
-        cyc_idx = config.ncd_samples_max - 1
+        rx_cyc = [0, ] * int(config.ncd_samples_max)
+        rx_drop_cyc = [0, ] * int(config.ncd_samples_max)
+        tx_cyc = [0, ] * int(config.ncd_samples_max)
+        tx_drop_cyc = [0, ] * int(config.ncd_samples_max)
+        cyc_idx = int(config.ncd_samples_max) - 1
 
         def __init__(self):
             """
@@ -352,10 +352,10 @@ class Dataif_Pmd(object):
 
         self.id = _id
         self.numa_id = None
-        self.rx_cyc = [0, ] * config.ncd_samples_max
-        self.idle_cpu_cyc = [0, ] * config.ncd_samples_max
-        self.proc_cpu_cyc = [0, ] * config.ncd_samples_max
-        self.cyc_idx = config.ncd_samples_max - 1
+        self.rx_cyc = [0, ] * int(config.ncd_samples_max)
+        self.idle_cpu_cyc = [0, ] * int(config.ncd_samples_max)
+        self.proc_cpu_cyc = [0, ] * int(config.ncd_samples_max)
+        self.cyc_idx = int(config.ncd_samples_max) - 1
         self.isolated = None
         self.pmd_load = 0
         self.port_map = {}

@@ -446,7 +446,7 @@ def pmd_load_variance(pmd_map):
     pmd_map : dict
         mapping of pmd id and its Dataif_Pmd object.
     """
-    pmd_load_list = map(lambda o: o.pmd_load, pmd_map.values())
+    pmd_load_list = list(map(lambda o: o.pmd_load, pmd_map.values()))
     return util.variance(pmd_load_list)
 
 
@@ -723,7 +723,7 @@ def ncd_main(argv):
     # current difference (as we use this later). So, do one extra
     # sampling to over write first sample and rotate left on the
     # samples right away to restore consistency of sample progress.
-    collect_data(config.ncd_samples_max + 1, ncd_sample_interval)
+    collect_data(int(config.ncd_samples_max) + 1, ncd_sample_interval)
 
     if ncd_rebal:
         if len(pmd_map) < 2:
@@ -772,7 +772,7 @@ def ncd_main(argv):
                                 pmd_cb_list.insert(0, pmd_id)
 
                 if (len(pmd_cb_list) > 0):
-                    pmds = " ".join(map(str, set(pmd_cb_list)))
+                    pmds = " ".join(list(map(str, set(pmd_cb_list))))
                     cmd = "%s %s" % (ncd_debug_cb, pmds)
                     nlog.info("executing callback %s" % cmd)
                     data = util.exec_host_command(cmd)
@@ -888,7 +888,7 @@ def ncd_main(argv):
                                 pmd_cb_list.insert(0, pmd_id)
 
                     if (len(pmd_cb_list) > 0):
-                        pmds = " ".join(map(str, set(pmd_cb_list)))
+                        pmds = " ".join(list(map(str, set(pmd_cb_list))))
                         cmd = "%s %s" % (ncd_debug_cb, pmds)
                         nlog.info("executing callback %s" % cmd)
                         data = util.exec_host_command(cmd)

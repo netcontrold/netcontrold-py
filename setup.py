@@ -1,6 +1,7 @@
 from setuptools import setup
 import re
 import sys
+import platform
 from subprocess import check_output
 
 
@@ -10,10 +11,12 @@ def readme():
 
 
 def version():
+    distname = ""
     if sys.argv[1].startswith("bdist"):
-        distname = check_output(["rpm --eval '%{dist}'"], shell=True).strip()
-    else:
-        distname = ""
+        distro = platform.dist()[0]
+        if distro in ['redhat']:
+            distname = check_output(["rpm --eval '%{dist}'"], shell=True).strip().decode()
+
     with open('netcontrold/__init__.py') as f:
         pattern = r"{}\W*=\W*'([^']+)'".format("__version__")
         vstr = re.findall(pattern, f.read())[0]
@@ -28,7 +31,7 @@ setup(name='netcontrold',
           'Development Status :: 3 - Alpha',
           'Environment :: Console',
           'License :: OSI Approved :: Apache Software License',
-          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
           'Topic :: System :: Monitoring',
       ],
       url='https://github.com/netcontrold/netcontrold-py.git',
@@ -40,6 +43,7 @@ setup(name='netcontrold',
       data_files=[
           ('/usr/lib/systemd/system', ['rhel/netcontrold.service'])
       ],
-      install_requires=['python'],
+      python_requires='>=3',
+      setup_requires=["wheel"],
       include_package_data=True,
       zip_safe=False)
