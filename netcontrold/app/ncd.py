@@ -174,21 +174,25 @@ def pmd_load(pmd):
     sort_proc_cyc.sort()
 
     rx_sum = sum([j - i for i, j in zip(sort_rx_cyc[:-1], sort_rx_cyc[1:])])
+    if rx_sum == 0:
+        # no activity without any packet.
+        return 0
+
     idle_sum = sum(
         [j - i for i, j in zip(sort_idle_cyc[:-1], sort_idle_cyc[1:])])
     proc_sum = sum(
         [j - i for i, j in zip(sort_proc_cyc[:-1], sort_proc_cyc[1:])])
 
-    try:
-        cpp = (idle_sum + proc_sum) / rx_sum
+    cpp = (idle_sum + proc_sum) / rx_sum
+    if cpp == 0:
+        # when pmd do not have any rxq configured, dry-run
+        # adds proc cpu or deletes idle cpu cycles when
+        # assigning rxqs virtually, hence their sum is null.
+        # we safely declare this pmd busy (we are still in dry-run).
+        pmd_load = 100
+    else:
         pcpp = proc_sum / rx_sum
         pmd_load = float((pcpp * 100) / cpp)
-    except ZeroDivisionError:
-        # When a pmd is really idle and also yet to be picked for
-        # rebalancing other rxqs, its rx packets count could still
-        # be zero, hence we get zero division exception.
-        # It is okay to declare this pmd as idle again.
-        pmd_load = 0
 
     return pmd_load
 
