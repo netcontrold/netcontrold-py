@@ -165,11 +165,19 @@ def pmd_load(pmd):
 
     # Given we have samples of rx packtes, processing and idle cpu
     # cycles of a pmd, calculate load on this pmd.
-    rx_sum = sum([j - i for i, j in zip(pmd.rx_cyc[:-1], pmd.rx_cyc[1:])])
+    # sort counters so that, incremental differences calculated.
+    sort_rx_cyc = pmd.rx_cyc[:]
+    sort_rx_cyc.sort()
+    sort_idle_cyc = pmd.idle_cpu_cyc[:]
+    sort_idle_cyc.sort()
+    sort_proc_cyc = pmd.proc_cpu_cyc[:]
+    sort_proc_cyc.sort()
+
+    rx_sum = sum([j - i for i, j in zip(sort_rx_cyc[:-1], sort_rx_cyc[1:])])
     idle_sum = sum(
-        [j - i for i, j in zip(pmd.idle_cpu_cyc[:-1], pmd.idle_cpu_cyc[1:])])
+        [j - i for i, j in zip(sort_idle_cyc[:-1], sort_idle_cyc[1:])])
     proc_sum = sum(
-        [j - i for i, j in zip(pmd.proc_cpu_cyc[:-1], pmd.proc_cpu_cyc[1:])])
+        [j - i for i, j in zip(sort_proc_cyc[:-1], sort_proc_cyc[1:])])
 
     try:
         cpp = (idle_sum + proc_sum) / rx_sum
