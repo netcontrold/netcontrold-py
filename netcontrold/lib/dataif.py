@@ -666,8 +666,11 @@ def get_pmd_rxqs(pmd_map):
                 # qrx is approximate count of packets that this rxq
                 # received.
                 cur_idx = pmd.cyc_idx
-                qrx = (qcpu * pmd.rx_cyc[cur_idx]) / 100
-                qcpu = (qcpu * pmd.proc_cpu_cyc[cur_idx]) / 100
+                prev_idx = (cur_idx - 1) % config.ncd_samples_max
+                rx_diff = pmd.rx_cyc[cur_idx] - pmd.rx_cyc[prev_idx]
+                cpu_diff = pmd.proc_cpu_cyc[cur_idx] - pmd.proc_cpu_cyc[prev_idx]
+                qrx = (qcpu * rx_diff) / 100
+                qcpu = (qcpu * cpu_diff) / 100
                 # update rebalancing pmd for cpu cycles and rx count.
                 reb_pmd.proc_cpu_cyc[cur_idx] += qcpu
                 reb_pmd.idle_cpu_cyc[cur_idx] -= qcpu
@@ -683,8 +686,11 @@ def get_pmd_rxqs(pmd_map):
                 rxq.pmd = pmd
                 rxq.port = port
                 cur_idx = pmd.cyc_idx
-                qrx = (qcpu * pmd.rx_cyc[cur_idx]) / 100
-                qcpu = (qcpu * pmd.proc_cpu_cyc[cur_idx]) / 100
+                prev_idx = (cur_idx - 1) % config.ncd_samples_max
+                rx_diff = pmd.rx_cyc[cur_idx] - pmd.rx_cyc[prev_idx]
+                cpu_diff = pmd.proc_cpu_cyc[cur_idx] - pmd.proc_cpu_cyc[prev_idx]
+                qcpu = (qcpu * cpu_diff) / 100
+                qrx = (qcpu * rx_diff) / 100
 
             rxq.cpu_cyc[pmd.cyc_idx] = qcpu
         else:
