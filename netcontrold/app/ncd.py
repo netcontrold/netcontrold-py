@@ -75,7 +75,7 @@ class CtlDThread(util.Thread):
             conn, client = sock.accept()
 
             try:
-                cmd = conn.recv(16)
+                cmd = conn.recv(16).decode()
 
                 rctx = RebalContext
                 dctx = DebugContext
@@ -87,7 +87,7 @@ class CtlDThread(util.Thread):
                     else:
                         nlog.info("debug mode already on ..!")
 
-                    conn.sendall("CTLD_ACK")
+                    conn.sendall(b"CTLD_ACK")
 
                 elif cmd == 'CTLD_DEBUG_OFF':
                     if dctx.debug_mode:
@@ -96,7 +96,7 @@ class CtlDThread(util.Thread):
                     else:
                         nlog.info("debug mode already off ..!")
 
-                    conn.sendall("CTLD_ACK")
+                    conn.sendall(b"CTLD_ACK")
 
                 elif cmd == 'CTLD_REBAL_ON':
                     if not rctx.rebal_mode:
@@ -105,7 +105,7 @@ class CtlDThread(util.Thread):
                     else:
                         nlog.info("rebalance mode already on ..!")
 
-                    conn.sendall("CTLD_ACK")
+                    conn.sendall(b"CTLD_ACK")
 
                 elif cmd == 'CTLD_REBAL_OFF':
                     if rctx.rebal_mode:
@@ -114,15 +114,15 @@ class CtlDThread(util.Thread):
                     else:
                         nlog.info("rebalance mode already off ..!")
 
-                    conn.sendall("CTLD_ACK")
+                    conn.sendall(b"CTLD_ACK")
 
                 elif cmd == 'CTLD_REBAL_CNT':
                     n = 0
                     if rctx.rebal_mode:
                         n = len(rctx.rebal_stat)
 
-                    conn.sendall("CTLD_DATA_ACK %6d" % (len(str(n))))
-                    conn.sendall(str(n))
+                    conn.sendall(b"CTLD_DATA_ACK %6d" % (len(str(n))))
+                    conn.sendall(str(n).encode())
 
                 elif cmd == 'CTLD_STATUS':
                     status = "debug mode:"
@@ -141,8 +141,8 @@ class CtlDThread(util.Thread):
                     for i in sorted(rctx.rebal_stat.keys()):
                         status += "%-4s: %s\n" % (i + 1, rctx.rebal_stat[i])
 
-                    conn.sendall("CTLD_DATA_ACK %6d" % (len(status)))
-                    conn.sendall(status)
+                    conn.sendall(b"CTLD_DATA_ACK %6d" % (len(status)))
+                    conn.sendall(status.encode())
 
                 else:
                     nlog.info("unknown control command %s" % cmd)

@@ -193,9 +193,9 @@ class Service:
 
         try:
             if rebal_flag:
-                sock.sendall("CTLD_REBAL_ON")
+                sock.sendall(b"CTLD_REBAL_ON")
             else:
-                sock.sendall("CTLD_REBAL_OFF")
+                sock.sendall(b"CTLD_REBAL_OFF")
 
             ack_len = 0
             while (ack_len < len("CTLD_ACK")):
@@ -226,9 +226,9 @@ class Service:
 
         try:
             if dbg_flag:
-                sock.sendall("CTLD_DEBUG_ON")
+                sock.sendall(b"CTLD_DEBUG_ON")
             else:
-                sock.sendall("CTLD_DEBUG_OFF")
+                sock.sendall(b"CTLD_DEBUG_OFF")
 
             ack_len = 0
             while (ack_len < len("CTLD_ACK")):
@@ -258,16 +258,16 @@ class Service:
             sys.exit(1)
 
         try:
-            sock.sendall("CTLD_STATUS")
+            sock.sendall(b"CTLD_STATUS")
             ack_len = 0
             while (ack_len < len("CTLD_DATA_ACK XXXXXX")):
                 data = sock.recv(len("CTLD_DATA_ACK XXXXXX"))
                 ack_len += len(data)
 
-            status_len = int(re.findall('\d+', data)[0])
+            status_len = int(re.findall('\d+', data.decode())[0])
             data_len = 0
             while (data_len < status_len):
-                data = sock.recv(status_len)
+                data = sock.recv(status_len).decode()
                 data_len += len(data)
 
             sys.stdout.write(data)
