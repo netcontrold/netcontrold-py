@@ -699,6 +699,8 @@ def ncd_main(argv):
 
         rctx.rebal_mode = True
 
+    config.ncd_samples_max = int(config.ncd_samples_max)
+
     # set signal handler to abort ncd
     signal.signal(signal.SIGINT, ncd_kill)
     signal.signal(signal.SIGTERM, ncd_kill)
@@ -723,7 +725,7 @@ def ncd_main(argv):
     # current difference (as we use this later). So, do one extra
     # sampling to over write first sample and rotate left on the
     # samples right away to restore consistency of sample progress.
-    collect_data(int(config.ncd_samples_max) + 1, ncd_sample_interval)
+    collect_data(config.ncd_samples_max + 1, ncd_sample_interval)
 
     if ncd_rebal:
         if len(pmd_map) < 2:
