@@ -24,7 +24,8 @@ import re
 from netcontrold.lib import util
 
 from netcontrold.lib import config
-from netcontrold.lib.error import ObjCreateExc, ObjParseExc, ObjConsistencyExc, OsCommandExc
+from netcontrold.lib.error import ObjCreateExc, ObjParseExc,\
+    ObjConsistencyExc, OsCommandExc
 
 
 class Context():
@@ -668,7 +669,8 @@ def get_pmd_rxqs(pmd_map):
                 cur_idx = pmd.cyc_idx
                 prev_idx = (cur_idx - 1) % config.ncd_samples_max
                 rx_diff = pmd.rx_cyc[cur_idx] - pmd.rx_cyc[prev_idx]
-                cpu_diff = pmd.proc_cpu_cyc[cur_idx] - pmd.proc_cpu_cyc[prev_idx]
+                cpu_diff = pmd.proc_cpu_cyc[
+                    cur_idx] - pmd.proc_cpu_cyc[prev_idx]
                 qrx = (qcpu * rx_diff) / 100
                 qcpu = (qcpu * cpu_diff) / 100
                 # update rebalancing pmd for cpu cycles and rx count.
@@ -688,7 +690,8 @@ def get_pmd_rxqs(pmd_map):
                 cur_idx = pmd.cyc_idx
                 prev_idx = (cur_idx - 1) % config.ncd_samples_max
                 rx_diff = pmd.rx_cyc[cur_idx] - pmd.rx_cyc[prev_idx]
-                cpu_diff = pmd.proc_cpu_cyc[cur_idx] - pmd.proc_cpu_cyc[prev_idx]
+                cpu_diff = pmd.proc_cpu_cyc[
+                    cur_idx] - pmd.proc_cpu_cyc[prev_idx]
                 qcpu = (qcpu * cpu_diff) / 100
                 qrx = (qcpu * rx_diff) / 100
 

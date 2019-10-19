@@ -37,7 +37,7 @@ def exec_host_command(cmd):
     try:
         ret = subprocess.check_output(cmd.split()).decode()
     except subprocess.CalledProcessError as e:
-        print ("Unable to execute command %s: %s" % (cmd, e))
+        print("Unable to execute command %s: %s" % (cmd, e))
         return 1
     return ret
 
@@ -90,7 +90,7 @@ class Service:
         self.args = cb_args
 
     def __exit__(self):
-        print ("ncd_ctl (PID %d) stops." % os.getpid())
+        print("ncd_ctl (PID %d) stops." % os.getpid())
         return 0
 
     def create(self):

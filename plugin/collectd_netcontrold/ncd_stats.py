@@ -27,7 +27,7 @@ def read_func():
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     try:
         sock.connect(SOCKET)
-    except socket.error, e:
+    except socket.error as e:
         collectd.error("unable to connect %s: %s\n" % (SOCKET, e))
         return
 

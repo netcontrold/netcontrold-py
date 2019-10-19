@@ -15,7 +15,8 @@ def version():
     if sys.argv[1].startswith("bdist"):
         distro = platform.dist()[0]
         if distro in ['redhat']:
-            distname = check_output(["rpm --eval '%{dist}'"], shell=True).strip().decode()
+            distname = check_output(
+                ["rpm --eval '%{dist}'"], shell=True).strip().decode()
 
     with open('netcontrold/__init__.py') as f:
         pattern = r"{}\W*=\W*'([^']+)'".format("__version__")
