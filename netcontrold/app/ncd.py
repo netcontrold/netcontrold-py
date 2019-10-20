@@ -612,7 +612,7 @@ def ncd_main(argv):
                            help='operate in debug mode',
                            )
 
-    reb_group.add_argument('--debug-cb',
+    deb_group.add_argument('--debug-cb',
                            type=str,
                            default='ncd_cb_pktdrop',
                            help='debug mode callback '
