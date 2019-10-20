@@ -154,7 +154,7 @@ class Port(object):
         """
         Return Dataif_Rxq of this id if available in port.rxq_map.
         Otherwise none returned.
-        Signed-off-by: Gowrishankar Muthukrishnan <gmuthukr@redhat.com>
+
         Parameters
         ----------
         _id : int
@@ -249,6 +249,8 @@ def make_dataif_port(port_name=None):
             current sampling index.
         rxq_rebalanced : dict
             map of PMDs that its each rxq will be associated with.
+        rebalance : bool
+            in rebalance or not.
         """
 
         __metaclass__ = Meta
@@ -259,6 +261,7 @@ def make_dataif_port(port_name=None):
         tx_cyc = [0, ] * int(config.ncd_samples_max)
         tx_drop_cyc = [0, ] * int(config.ncd_samples_max)
         cyc_idx = int(config.ncd_samples_max) - 1
+        rebalance = False
 
         def __init__(self):
             """
@@ -650,6 +653,9 @@ def get_pmd_rxqs(pmd_map):
             # update port attributes now.
             port.id = Context.port_to_id[pname]
             port.numa_id = pmd.numa_id
+
+            port_cls = Context.port_to_cls[pname]
+            port_cls.rebalance = True
 
             # check whether this rxq was being rebalanced.
             if qid in port.rxq_rebalanced:
