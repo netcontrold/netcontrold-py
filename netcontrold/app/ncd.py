@@ -30,6 +30,7 @@ import threading
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 
+import netcontrold
 from netcontrold.lib import config
 from netcontrold.lib import dataif
 from netcontrold.lib import util
@@ -140,6 +141,12 @@ class CtlDThread(util.Thread):
                     status += "rebalance events:\n"
                     for i in sorted(rctx.rebal_stat.keys()):
                         status += "%-4s: %s\n" % (i + 1, rctx.rebal_stat[i])
+
+                    conn.sendall(b"CTLD_DATA_ACK %6d" % (len(status)))
+                    conn.sendall(status.encode())
+
+                elif cmd == 'CTLD_VERSION':
+                    status = netcontrold.__version__
 
                     conn.sendall(b"CTLD_DATA_ACK %6d" % (len(status)))
                     conn.sendall(status.encode())

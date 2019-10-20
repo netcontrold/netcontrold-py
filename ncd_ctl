@@ -10,14 +10,26 @@ sys.path.insert(0, ncd_pkg)
 from netcontrold.app import ncd
 from netcontrold.lib import util
 
-USAGE = "ncd_ctl [start/stop/restart/status"\
-        "/rebalance-on/rebalance-off" \
-        "/debug-on/debug-off]\n"
+USAGE = "usage: ncd_ctl CMD\n" \
+        "\n" \
+        "CMD in one of the below:\n" \
+        "  start\n" \
+        "  stop\n" \
+        "  restart\n" \
+        "  status\n" \
+        "  rebalance-on\n" \
+        "  rebalance-off\n" \
+        "  debug-on\n" \
+        "  debug-off\n" \
+        "  version\n" \
+        ""
 
 if ((len(sys.argv) != 2) or
         (sys.argv[1] not in ('start', 'stop', 'restart', 'status', 
                              'rebalance-on', 'rebalance-off',
-                             'debug-on', 'debug-off'))):
+                             'debug-on', 'debug-off',
+                             'version',
+                             ))):
     sys.stderr.write(USAGE)
     sys.exit(1)
 
@@ -41,6 +53,8 @@ elif sys.argv[1] == 'debug-on':
     main_srv.debug(True)
 elif sys.argv[1] == 'debug-off':
     main_srv.debug(False)
+elif sys.argv[1] == 'version':
+    main_srv.version()
 
 sys.exit(0)
 
