@@ -609,41 +609,38 @@ def ncd_main(argv):
                          default=10,
                          help='seconds between each sampling (default: 10)')
 
-    deb_group = argpobj.add_mutually_exclusive_group()
-    reb_group = argpobj.add_mutually_exclusive_group()
-
-    deb_group.add_argument('-d', '--debug',
+    argpobj.add_argument('-d', '--debug',
                            required=False,
                            action='store_true',
                            default=False,
                            help='operate in debug mode',
                            )
 
-    deb_group.add_argument('--debug-cb',
+    argpobj.add_argument('--debug-cb',
                            type=str,
                            default='ncd_cb_pktdrop',
                            help='debug mode callback '
                                 '(default: ncd_cb_pktdrop)')
 
-    reb_group.add_argument('-r', '--rebalance',
+    argpobj.add_argument('-r', '--rebalance',
                            required=False,
                            action='store_true',
                            default=True,
                            help="operate in rebalance mode",
                            )
 
-    reb_group.add_argument('--rebalance-interval',
+    argpobj.add_argument('--rebalance-interval',
                            type=int,
                            default=60,
                            help='seconds between each re-balance '
                                 '(default: 60)')
 
-    reb_group.add_argument('--rebalance-n',
+    argpobj.add_argument('--rebalance-n',
                            type=int,
                            default=1,
                            help='rebalance dry-runs at the max (default: 1)')
 
-    reb_group.add_argument('--rebalance-iq',
+    argpobj.add_argument('--rebalance-iq',
                            action='store_true',
                            default=False,
                            help='rebalance by idle-queue logic '
