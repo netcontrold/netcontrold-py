@@ -757,11 +757,7 @@ def ncd_main(argv):
         nlog.info("failed to start ctld thread ..")
         sys.exit(1)
 
-    # The first sample do not have previous sample to calculate
-    # current difference (as we use this later). So, do one extra
-    # sampling to over write first sample and rotate left on the
-    # samples right away to restore consistency of sample progress.
-    collect_data(config.ncd_samples_max + 1, ncd_sample_interval)
+    collect_data(config.ncd_samples_max, ncd_sample_interval)
 
     if ncd_rebal:
         if len(pmd_map) < 2:
@@ -893,7 +889,7 @@ def ncd_main(argv):
                 pmd_map.clear()
                 ctx.port_to_cls.clear()
 
-                collect_data(config.ncd_samples_max + 1, ncd_sample_interval)
+                collect_data(config.ncd_samples_max, ncd_sample_interval)
 
                 good_var = pmd_load_variance(pmd_map)
                 pmd_map_balanced = copy.deepcopy(pmd_map)

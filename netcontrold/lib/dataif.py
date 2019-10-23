@@ -260,7 +260,7 @@ def make_dataif_port(port_name=None):
         rx_drop_cyc = [0, ] * int(config.ncd_samples_max)
         tx_cyc = [0, ] * int(config.ncd_samples_max)
         tx_drop_cyc = [0, ] * int(config.ncd_samples_max)
-        cyc_idx = int(config.ncd_samples_max) - 1
+        cyc_idx = 0
         rebalance = False
 
         def __init__(self):
@@ -359,7 +359,7 @@ class Dataif_Pmd(object):
         self.rx_cyc = [0, ] * int(config.ncd_samples_max)
         self.idle_cpu_cyc = [0, ] * int(config.ncd_samples_max)
         self.proc_cpu_cyc = [0, ] * int(config.ncd_samples_max)
-        self.cyc_idx = int(config.ncd_samples_max) - 1
+        self.cyc_idx = 0
         self.isolated = None
         self.pmd_load = 0
         self.port_map = {}
