@@ -621,40 +621,40 @@ def ncd_main(argv):
                          help='seconds between each sampling (default: 10)')
 
     argpobj.add_argument('-d', '--debug',
-                           required=False,
-                           action='store_true',
-                           default=False,
-                           help='operate in debug mode',
-                           )
+                         required=False,
+                         action='store_true',
+                         default=False,
+                         help='operate in debug mode',
+                         )
 
     argpobj.add_argument('--debug-cb',
-                           type=str,
-                           default='ncd_cb_pktdrop',
-                           help='debug mode callback '
-                                '(default: ncd_cb_pktdrop)')
+                         type=str,
+                         default='ncd_cb_pktdrop',
+                         help='debug mode callback '
+                         '(default: ncd_cb_pktdrop)')
 
     argpobj.add_argument('-r', '--rebalance',
-                           required=False,
-                           action='store_true',
-                           default=True,
-                           help="operate in rebalance mode",
-                           )
+                         required=False,
+                         action='store_true',
+                         default=True,
+                         help="operate in rebalance mode",
+                         )
 
     argpobj.add_argument('--rebalance-interval',
-                           type=int,
-                           default=60,
-                           help='seconds between each re-balance '
-                                '(default: 60)')
+                         type=int,
+                         default=60,
+                         help='seconds between each re-balance '
+                         '(default: 60)')
 
     argpobj.add_argument('--rebalance-n',
-                           type=int,
-                           default=1,
-                           help='rebalance dry-runs at the max (default: 1)')
+                         type=int,
+                         default=1,
+                         help='rebalance dry-runs at the max (default: 1)')
 
     argpobj.add_argument('--rebalance-iq',
-                           action='store_true',
-                           default=False,
-                           help='rebalance by idle-queue logic '
+                         action='store_true',
+                         default=False,
+                         help='rebalance by idle-queue logic '
                                 '(default: False)')
 
     argpobj.add_argument('-q', '--quiet',
