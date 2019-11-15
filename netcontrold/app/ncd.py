@@ -907,27 +907,6 @@ def ncd_main(argv):
                     nlog.info("port %s drop %d ppm" %
                               (port.name, port_drop_ppm(port)))
 
-                if dctx.debug_mode and not rebal_i:
-                    pmd_cb_list = []
-                    for pname in sorted(ctx.port_to_cls.keys()):
-                        port = ctx.port_to_cls[pname]
-                        drop = port_drop_ppm(port)
-                        if drop > config.ncd_cb_pktdrop_min:
-                            nlog.info("port %s drop %d ppm above %d ppm" %
-                                      (port.name, drop,
-                                       config.ncd_cb_pktdrop_min))
-                            for pmd_id in sorted(pmd_map.keys()):
-                                pmd = pmd_map[pmd_id]
-                            if (pmd.find_port_by_name(port.name)):
-                                pmd_cb_list.insert(0, pmd_id)
-
-                    if (len(pmd_cb_list) > 0):
-                        pmds = " ".join(list(map(str, set(pmd_cb_list))))
-                        cmd = "%s %s" % (ncd_debug_cb, pmds)
-                        nlog.info("executing callback %s" % cmd)
-                        data = util.exec_host_command(cmd)
-                        nlog.info(data)
-
         except error.NcdShutdownExc:
             nlog.info("Exiting NCD ..")
             tobj.ncd_shutdown.set()
