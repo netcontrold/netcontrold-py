@@ -237,6 +237,8 @@ def make_dataif_port(port_name=None):
         ----------
         name : string
             name of the port the class is created for.
+        type: str
+            type of this port.
         rx_cyc : list
             samples of packets by this port in RX.
         rx_drop_cyc : list
@@ -245,6 +247,8 @@ def make_dataif_port(port_name=None):
             samples of packets by this port in TX.
         tx_drop_cyc : list
             samples of dropped packets by this port in TX.
+        tx_retry_cyc : list
+            samples of transmit retry by this port in TX.
         cyc_idx : int
             current sampling index.
         rxq_rebalanced : dict
@@ -256,10 +260,12 @@ def make_dataif_port(port_name=None):
         __metaclass__ = Meta
 
         name = port_name
+        type = None
         rx_cyc = [0, ] * int(config.ncd_samples_max)
         rx_drop_cyc = [0, ] * int(config.ncd_samples_max)
         tx_cyc = [0, ] * int(config.ncd_samples_max)
         tx_drop_cyc = [0, ] * int(config.ncd_samples_max)
+        tx_retry_cyc = [0, ] * int(config.ncd_samples_max)
         cyc_idx = 0
         rebalance = False
 
@@ -287,6 +293,11 @@ def make_dataif_port(port_name=None):
                 txd = cls.tx_drop_cyc[i]
                 pstr += "port %s tx_cyc[%d] %d tx_drop_cyc[%d] %d\n" \
                         % (cls.name, i, tx, i, txd)
+
+            for i in range(0, len(cls.tx_retry_cyc)):
+                tx_retry = cls.tx_retry_cyc[i]
+                pstr += "port %s tx_retry_cyc[%d] %d\n" \
+                        % (cls.name, i, tx_retry)
 
             return pstr
 
@@ -773,5 +784,63 @@ def get_port_stats():
             (tx, drop, ) = linesre.groups()
             port.tx_cyc[port.cyc_idx] = int(tx)
             port.tx_drop_cyc[port.cyc_idx] = int(drop)
+
+    return None
+
+
+def get_interface_stats():
+    """
+    Collect retry stats on every applicable port in the datapath.
+    In every sampling iteration, these stats are stored
+    in corresponding sampling slots.
+
+    Raises
+    ------
+    OsCommandExc
+        if the given OS command did not succeed for some reason.
+    """
+
+    nlog = Context.nlog
+
+    # retrieve required data from the vswitch.
+    cmd = "ovs-vsctl list interface"
+    data = util.exec_host_command(cmd)
+    if not data:
+        raise OsCommandExc("unable to collect data")
+
+    # current port object to be used in every line under parse.
+    port = None
+
+    for line in data.splitlines():
+        if re.match(r'\s*name\s.*:\s"([A-Za-z0-9_-]+)"', line):
+            # In below matching line, we retrieve port id and name.
+            linesre = re.search(r'\s*name\s.*:\s"([A-Za-z0-9_-]+)"', line)
+            (pname, ) = linesre.groups()
+
+            # If in mid of sampling, we should have port_to_cls having
+            # entry for this port name.
+            if pname in Context.port_to_cls:
+                port = Context.port_to_cls[pname]
+
+                nlog.debug("port %s in iteration %d" %
+                           (port.name, port.cyc_idx))
+
+        elif re.match(r'\s*type\s.*:\s([a-z]+)', line):
+            # From other lines, we retrieve stats of the port.
+            linesre = re.search(
+                r'\s*type\s.*:\s([a-z]+)', line)
+            (type, ) = linesre.groups()
+            port.type = type
+
+        elif re.match(r'\s*statistics\s.*:\s{(.*)}', line):
+            # From other lines, we retrieve stats of the port.
+            linesre = re.search(
+                r'\s*statistics\s.*:\s{(.*)}', line)
+            (sval, ) = linesre.groups()
+            dval = {sub.split("=")[0]: sub.split("=")[1]
+                    for sub in sval.split(", ")}
+
+            if 'tx_retries' in dval:
+                port.tx_retry_cyc[port.cyc_idx] = int(dval['tx_retries'])
 
     return None
