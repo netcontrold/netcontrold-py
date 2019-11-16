@@ -12,5 +12,6 @@ trap "sigterm_cb" TERM
 ncd_ctl start
 
 # monitor log
-tail -f /var/log/ncd.log &
+mkdir -p /var/log/netcontrold
+tail -f /var/log/netcontrold/ncd.log &
 wait
