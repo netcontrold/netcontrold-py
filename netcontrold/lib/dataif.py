@@ -33,6 +33,8 @@ class Context():
     port_to_id = {}
     port_to_cls = {}
     nlog = None
+    last_ts = None
+    events = []
 
 
 nlog = Context.nlog

@@ -17,6 +17,7 @@ USAGE = "usage: ncd_ctl CMD\n" \
         "  stop\n" \
         "  restart\n" \
         "  status\n" \
+        "  config show\n" \
         "  config rebalance <on|off>\n" \
         "  config debug <on|off>\n" \
         "  version\n" \
@@ -29,9 +30,12 @@ try:
         assert (len(sys.argv) == 2)
 
     elif sys.argv[1] == 'config':
-        assert (len(sys.argv) == 4)
-        assert (sys.argv[2] in ('rebalance', 'debug'))
-        assert (sys.argv[3] in ('on', 'off'))
+        if (len(sys.argv) == 3):
+            assert (sys.argv[2] == 'show')
+        else:
+            assert (len(sys.argv) == 4)
+            assert (sys.argv[2] in ('rebalance', 'debug'))
+            assert (sys.argv[3] in ('on', 'off'))
 
 except AssertionError:
     sys.stderr.write(USAGE)
@@ -57,14 +61,18 @@ elif sys.argv[1] == 'status':
     main_srv.status()
 
 elif sys.argv[1] == 'config':
-    flag = True
-    if sys.argv[3] == 'off':
-        flag = False
+    if sys.argv[2] == 'show':
+        main_srv.config()
 
-    if sys.argv[2] == 'rebalance':
-        main_srv.rebalance(flag)
     else:
-        main_srv.debug(flag)
+        flag = True
+        if sys.argv[3] == 'off':
+            flag = False
+
+        if sys.argv[2] == 'rebalance':
+            main_srv.rebalance(flag)
+        else:
+            main_srv.debug(flag)
 
 elif sys.argv[1] == 'version':
     main_srv.version()

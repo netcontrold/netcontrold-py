@@ -174,6 +174,43 @@ class Service:
         self.stop()
         self.start()
 
+    def config(self):
+        """
+        Query current config of netcontrold.
+        """
+        sock_file = config.ncd_socket
+
+        if not os.path.exists(sock_file):
+            sys.stderr.write("socket %s not found.. exiting.\n" % sock_file)
+            sys.exit(1)
+
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.connect(sock_file)
+        except socket.error as e:
+            sys.stderr.write("unable to connect %s: %s\n" % (sock_file, e))
+            sys.exit(1)
+
+        try:
+            sock.sendall(b"CTLD_CONFIG")
+            ack_len = 0
+            while (ack_len < len("CTLD_DATA_ACK XXXXXX")):
+                data = sock.recv(len("CTLD_DATA_ACK XXXXXX"))
+                ack_len += len(data)
+
+            status_len = int(re.findall('\d+', data.decode())[0])
+            data_len = 0
+            while (data_len < status_len):
+                data = sock.recv(status_len).decode()
+                data_len += len(data)
+
+            sys.stdout.write(data)
+
+        finally:
+            sock.close()
+
+        return 0
+
     def rebalance(self, rebal_flag):
         """
         Enable or disable rebalance mode.
