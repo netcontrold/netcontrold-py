@@ -3,8 +3,8 @@ help="usage: ${0##*/} <cpu id(s)>"
 [[ $# -lt 1 ]] && echo $help && exit 1
 
 debug=/sys/kernel/debug
-trace_dir=/var/log/ncd_debug
-trace_file="$trace_dir/tracing.out$$"
+trace_dir=/var/log/netcontrold/traces
+trace_file="$trace_dir/ftrace.out$$"
 mkdir -p $trace_dir
 echo > $trace_file
 

@@ -3,7 +3,7 @@ Description=Network control daemon for Open vSwitch
 After=ovs-vswitchd.service
 Requires=ovs-vswitchd.service
 ReloadPropagatedFrom=ovs-vswitchd.service
-AssertPathIsReadWrite=/var/log/ncd.log
+AssertPathIsReadWrite=/var/log/netcontrold/ncd.log
 
 [Service]
 Type=forking

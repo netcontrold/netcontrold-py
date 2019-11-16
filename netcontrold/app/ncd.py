@@ -66,6 +66,8 @@ class CtlDThread(util.Thread):
             if os.path.exists(sock_file):
                 raise
 
+        os.makedirs(os.path.dirname(sock_file), exist_ok=True)
+
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         nlog.info("starting ctld on %s" % sock_file)
@@ -668,6 +670,7 @@ def ncd_main(argv):
         sys.exit(1)
 
     # set verbose level
+    os.makedirs(os.path.dirname(config.ncd_log_file), exist_ok=True)
     fh = RotatingFileHandler(config.ncd_log_file,
                              maxBytes=(config.ncd_log_max_KB * 1024),
                              backupCount=config.ncd_log_max_backup_n)
