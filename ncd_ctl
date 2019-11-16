@@ -17,19 +17,23 @@ USAGE = "usage: ncd_ctl CMD\n" \
         "  stop\n" \
         "  restart\n" \
         "  status\n" \
-        "  rebalance-on\n" \
-        "  rebalance-off\n" \
-        "  debug-on\n" \
-        "  debug-off\n" \
+        "  config rebalance <on|off>\n" \
+        "  config debug <on|off>\n" \
         "  version\n" \
         ""
 
-if ((len(sys.argv) != 2) or
-        (sys.argv[1] not in ('start', 'stop', 'restart', 'status', 
-                             'rebalance-on', 'rebalance-off',
-                             'debug-on', 'debug-off',
-                             'version',
-                             ))):
+try:
+    assert (len(sys.argv) >= 2)
+
+    if sys.argv[1] in ('start', 'stop', 'restart', 'status', 'version'):
+        assert (len(sys.argv) == 2)
+
+    elif sys.argv[1] == 'config':
+        assert (len(sys.argv) == 4)
+        assert (sys.argv[2] in ('rebalance', 'debug'))
+        assert (sys.argv[3] in ('on', 'off'))
+
+except AssertionError:
     sys.stderr.write(USAGE)
     sys.exit(1)
 
@@ -42,20 +46,26 @@ main_srv = util.Service(ncd.ncd_main,
 
 if sys.argv[1] == 'start':
     main_srv.start()
+
 elif sys.argv[1] == 'restart':
     main_srv.restart()
+
 elif sys.argv[1] == 'stop':
     main_srv.stop()
+
 elif sys.argv[1] == 'status':
     main_srv.status()
-elif sys.argv[1] == 'rebalance-on':
-    main_srv.rebalance(True)
-elif sys.argv[1] == 'rebalance-off':
-    main_srv.rebalance(False)
-elif sys.argv[1] == 'debug-on':
-    main_srv.debug(True)
-elif sys.argv[1] == 'debug-off':
-    main_srv.debug(False)
+
+elif sys.argv[1] == 'config':
+    flag = True
+    if sys.argv[3] == 'off':
+        flag = False
+
+    if sys.argv[2] == 'rebalance':
+        main_srv.rebalance(flag)
+    else:
+        main_srv.debug(flag)
+
 elif sys.argv[1] == 'version':
     main_srv.version()
 
