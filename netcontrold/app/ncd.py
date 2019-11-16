@@ -515,6 +515,14 @@ def port_drop_ppm(port):
     return (1000000 * dsum) / psum
 
 
+def port_tx_retry(port):
+    """
+    Return count of tx retry performed, from the port stats.
+    """
+    return sum(
+        [j - i for i, j in zip(port.tx_retry_cyc[:-1], port.tx_retry_cyc[1:])])
+
+
 def collect_data(n_samples, s_sampling):
     """
     Collect various stats and rxqs mapping of every pmd in the vswitch.
@@ -534,6 +542,7 @@ def collect_data(n_samples, s_sampling):
     # collect samples of pmd and rxq stats.
     for i in range(0, n_samples):
         dataif.get_port_stats()
+        dataif.get_interface_stats()
         dataif.get_pmd_stats(ctx.pmd_map)
         dataif.get_pmd_rxqs(ctx.pmd_map)
         time.sleep(s_sampling)
@@ -612,40 +621,40 @@ def ncd_main(argv):
                          help='seconds between each sampling (default: 10)')
 
     argpobj.add_argument('-d', '--debug',
-                           required=False,
-                           action='store_true',
-                           default=False,
-                           help='operate in debug mode',
-                           )
+                         required=False,
+                         action='store_true',
+                         default=False,
+                         help='operate in debug mode',
+                         )
 
     argpobj.add_argument('--debug-cb',
-                           type=str,
-                           default='ncd_cb_pktdrop',
-                           help='debug mode callback '
-                                '(default: ncd_cb_pktdrop)')
+                         type=str,
+                         default='ncd_cb_pktdrop',
+                         help='debug mode callback '
+                         '(default: ncd_cb_pktdrop)')
 
     argpobj.add_argument('-r', '--rebalance',
-                           required=False,
-                           action='store_true',
-                           default=True,
-                           help="operate in rebalance mode",
-                           )
+                         required=False,
+                         action='store_true',
+                         default=True,
+                         help="operate in rebalance mode",
+                         )
 
     argpobj.add_argument('--rebalance-interval',
-                           type=int,
-                           default=60,
-                           help='seconds between each re-balance '
-                                '(default: 60)')
+                         type=int,
+                         default=60,
+                         help='seconds between each re-balance '
+                         '(default: 60)')
 
     argpobj.add_argument('--rebalance-n',
-                           type=int,
-                           default=1,
-                           help='rebalance dry-runs at the max (default: 1)')
+                         type=int,
+                         default=1,
+                         help='rebalance dry-runs at the max (default: 1)')
 
     argpobj.add_argument('--rebalance-iq',
-                           action='store_true',
-                           default=False,
-                           help='rebalance by idle-queue logic '
+                         action='store_true',
+                         default=False,
+                         help='rebalance by idle-queue logic '
                                 '(default: False)')
 
     argpobj.add_argument('-q', '--quiet',
@@ -776,7 +785,8 @@ def ncd_main(argv):
     nlog.info("initial port drops:")
     for pname in sorted(ctx.port_to_cls.keys()):
         port = ctx.port_to_cls[pname]
-        nlog.info("port %s drop %d ppm" % (port.name, port_drop_ppm(port)))
+        nlog.info("port %s drop(ppm) %d tx_retry %d" %
+                  (port.name, port_drop_ppm(port), port_tx_retry(port)))
 
     # begin rebalance dry run
     while (1):
@@ -797,13 +807,27 @@ def ncd_main(argv):
                 for pname in sorted(ctx.port_to_cls.keys()):
                     port = ctx.port_to_cls[pname]
                     drop = port_drop_ppm(port)
+                    tx_retry = port_tx_retry(port)
+                    do_cb = False
                     if drop > config.ncd_cb_pktdrop_min:
                         nlog.info("port %s drop %d ppm above %d ppm" %
                                   (port.name, drop, config.ncd_cb_pktdrop_min))
-                        for pmd_id in sorted(pmd_map.keys()):
-                            pmd = pmd_map[pmd_id]
-                            if (pmd.find_port_by_name(port.name)):
-                                pmd_cb_list.insert(0, pmd_id)
+                        do_cb = True
+
+                    if tx_retry > config.ncd_samples_max:
+                        nlog.info("port %s tx_retry %d above %d" %
+                                  (port.name, tx_retry,
+                                   config.ncd_samples_max))
+                        do_cb = True
+
+                    if not do_cb:
+                        # no pmd needs to be debugged.
+                        continue
+
+                    for pmd_id in sorted(pmd_map.keys()):
+                        pmd = pmd_map[pmd_id]
+                        if (pmd.find_port_by_name(port.name)):
+                            pmd_cb_list.insert(0, pmd_id)
 
                 if (len(pmd_cb_list) > 0):
                     pmds = " ".join(list(map(str, set(pmd_cb_list))))
@@ -826,8 +850,9 @@ def ncd_main(argv):
                 nlog.info("current port drops:")
                 for pname in sorted(ctx.port_to_cls.keys()):
                     port = ctx.port_to_cls[pname]
-                    nlog.info("port %s drop %d ppm" %
-                              (port.name, port_drop_ppm(port)))
+                    nlog.info("port %s drop(ppm) %d tx_retry %d" %
+                              (port.name, port_drop_ppm(port),
+                               port_tx_retry(port)))
 
                 continue
 
@@ -904,29 +929,9 @@ def ncd_main(argv):
                 nlog.info("current port drops:")
                 for pname in sorted(ctx.port_to_cls.keys()):
                     port = ctx.port_to_cls[pname]
-                    nlog.info("port %s drop %d ppm" %
-                              (port.name, port_drop_ppm(port)))
-
-                if dctx.debug_mode and not rebal_i:
-                    pmd_cb_list = []
-                    for pname in sorted(ctx.port_to_cls.keys()):
-                        port = ctx.port_to_cls[pname]
-                        drop = port_drop_ppm(port)
-                        if drop > config.ncd_cb_pktdrop_min:
-                            nlog.info("port %s drop %d ppm above %d ppm" %
-                                      (port.name, drop,
-                                       config.ncd_cb_pktdrop_min))
-                            for pmd_id in sorted(pmd_map.keys()):
-                                pmd = pmd_map[pmd_id]
-                            if (pmd.find_port_by_name(port.name)):
-                                pmd_cb_list.insert(0, pmd_id)
-
-                    if (len(pmd_cb_list) > 0):
-                        pmds = " ".join(list(map(str, set(pmd_cb_list))))
-                        cmd = "%s %s" % (ncd_debug_cb, pmds)
-                        nlog.info("executing callback %s" % cmd)
-                        data = util.exec_host_command(cmd)
-                        nlog.info(data)
+                    nlog.info("port %s drop(ppm) %d tx_retry %d" %
+                              (port.name, port_drop_ppm(port),
+                               port_tx_retry(port)))
 
         except error.NcdShutdownExc:
             nlog.info("Exiting NCD ..")
