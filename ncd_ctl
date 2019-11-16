@@ -33,9 +33,12 @@ if ((len(sys.argv) != 2) or
     sys.stderr.write(USAGE)
     sys.exit(1)
 
+pid_file = '/var/run/netcontrold/ncd.pid'
+os.makedirs(os.path.dirname(pid_file), exist_ok=True)
+
 main_srv = util.Service(ncd.ncd_main,
                         ['-s', '10', '-q'],
-                        '/var/run/ncd.pid')
+                        '/var/run/netcontrold/ncd.pid')
 
 if sys.argv[1] == 'start':
     main_srv.start()

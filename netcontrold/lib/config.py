@@ -38,7 +38,7 @@ ncd_pmd_core_threshold = 95
 ncd_vsw_wait_min = 60
 
 # Store location for the logs created and its maximum size.
-ncd_log_file = "/var/log/ncd.log"
+ncd_log_file = "/var/log/netcontrold/ncd.log"
 ncd_log_max_KB = 1024
 ncd_log_max_backup_n = 1
 
@@ -46,4 +46,4 @@ ncd_log_max_backup_n = 1
 ncd_cb_pktdrop_min = 10000
 
 # Unix socket file
-ncd_socket = "/var/run/ncd_ctrld.sock"
+ncd_socket = "/var/run/netcontrold/ncd_ctrld.sock"
