@@ -41,7 +41,6 @@ class RebalContext(dataif.Context):
     rebal_mode = False
     rebal_tick = 0
     rebal_tick_n = 0
-    rebal_stat = {}
     apply_rebal = False
 
 
@@ -80,6 +79,7 @@ class CtlDThread(util.Thread):
             try:
                 cmd = conn.recv(16).decode()
 
+                ctx = dataif.Context
                 rctx = RebalContext
                 dctx = DebugContext
 
@@ -123,11 +123,14 @@ class CtlDThread(util.Thread):
                     n = 0
                     if rctx.rebal_mode:
                         n = len(rctx.rebal_stat)
+                        for (x, y, z) in ctx.events:
+                            if y == 'rebalance':
+                                n += 1
 
                     conn.sendall(b"CTLD_DATA_ACK %6d" % (len(str(n))))
                     conn.sendall(str(n).encode())
 
-                elif cmd == 'CTLD_STATUS':
+                elif cmd == 'CTLD_CONFIG':
                     status = "debug mode:"
                     if dctx.debug_mode:
                         status += " on\n"
@@ -140,15 +143,23 @@ class CtlDThread(util.Thread):
                     else:
                         status += " off\n"
 
-                    status += "rebalance events:\n"
-                    for i in sorted(rctx.rebal_stat.keys()):
-                        status += "%-4s: %s\n" % (i + 1, rctx.rebal_stat[i])
+                    conn.sendall(b"CTLD_DATA_ACK %6d" % (len(status)))
+                    conn.sendall(status.encode())
+
+                elif cmd == 'CTLD_STATUS':
+                    status = "%-16s | %-12s | %s\n" % ('Interface',
+                                                     'Event', 'Time stamp')
+                    status += ('-' * 17) + '+' + ('-' * 14) + '+' + ('-' * 28)
+                    status += '\n'
+
+                    for (x, y, z) in ctx.events:
+                        status += "%-16s | %-12s | %s\n" % (x, y, z)
 
                     conn.sendall(b"CTLD_DATA_ACK %6d" % (len(status)))
                     conn.sendall(status.encode())
 
                 elif cmd == 'CTLD_VERSION':
-                    status = netcontrold.__version__
+                    status = "netcontrold v%s\n" % netcontrold.__version__
 
                     conn.sendall(b"CTLD_DATA_ACK %6d" % (len(status)))
                     conn.sendall(status.encode())
@@ -500,6 +511,7 @@ def port_drop_ppm(port):
     Return packet drops from the port stats.
 
     """
+    ret_rxtx = [0, 0]
     rx_sum = sum([j - i for i, j in zip(port.rx_cyc[:-1], port.rx_cyc[1:])])
     rxd_sum = sum(
         [j - i for i, j in zip(port.rx_drop_cyc[:-1], port.rx_drop_cyc[1:])])
@@ -507,12 +519,13 @@ def port_drop_ppm(port):
     txd_sum = sum(
         [j - i for i, j in zip(port.tx_drop_cyc[:-1], port.tx_drop_cyc[1:])])
 
-    psum = (rx_sum + tx_sum)
-    if psum == 0:
-        return 0
+    if rx_sum != 0:
+        ret_rxtx[0] = (1000000 * rxd_sum) / rx_sum
 
-    dsum = (rxd_sum + txd_sum)
-    return (1000000 * dsum) / psum
+    if tx_sum != 0:
+        ret_rxtx[1] = (1000000 * txd_sum) / tx_sum
+
+    return ret_rxtx
 
 
 def port_tx_retry(port):
@@ -541,6 +554,7 @@ def collect_data(n_samples, s_sampling):
 
     # collect samples of pmd and rxq stats.
     for i in range(0, n_samples):
+        ctx.last_ts = datetime.now()
         dataif.get_port_stats()
         dataif.get_interface_stats()
         dataif.get_pmd_stats(ctx.pmd_map)
@@ -785,8 +799,10 @@ def ncd_main(argv):
     nlog.info("initial port drops:")
     for pname in sorted(ctx.port_to_cls.keys()):
         port = ctx.port_to_cls[pname]
-        nlog.info("port %s drop(ppm) %d tx_retry %d" %
-                  (port.name, port_drop_ppm(port), port_tx_retry(port)))
+        drop = port_drop_ppm(port)
+        nlog.info("port %s drop_rx(ppm) %d drop_tx(ppm) %d"
+                  " tx_retry %d" %
+                  (port.name, drop[0], drop[1], port_tx_retry(port)))
 
     # begin rebalance dry run
     while (1):
@@ -807,17 +823,26 @@ def ncd_main(argv):
                 for pname in sorted(ctx.port_to_cls.keys()):
                     port = ctx.port_to_cls[pname]
                     drop = port_drop_ppm(port)
+                    drop_min = config.ncd_cb_pktdrop_min
                     tx_retry = port_tx_retry(port)
                     do_cb = False
-                    if drop > config.ncd_cb_pktdrop_min:
-                        nlog.info("port %s drop %d ppm above %d ppm" %
-                                  (port.name, drop, config.ncd_cb_pktdrop_min))
+                    if drop[0] > drop_min:
+                        nlog.info("port %s drop_rx %d ppm above %d ppm" %
+                                  (port.name, drop[0], drop_min))
+                        ctx.events.append((port.name, "rx_drop", ctx.last_ts))
+                        do_cb = True
+
+                    if drop[1] > drop_min:
+                        nlog.info("port %s drop_tx %d ppm above %d ppm" %
+                                  (port.name, drop[1], drop_min))
+                        ctx.events.append((port.name, "tx_drop", ctx.last_ts))
                         do_cb = True
 
                     if tx_retry > config.ncd_samples_max:
                         nlog.info("port %s tx_retry %d above %d" %
                                   (port.name, tx_retry,
                                    config.ncd_samples_max))
+                        ctx.events.append((port.name, "tx_retry", ctx.last_ts))
                         do_cb = True
 
                     if not do_cb:
@@ -850,8 +875,10 @@ def ncd_main(argv):
                 nlog.info("current port drops:")
                 for pname in sorted(ctx.port_to_cls.keys()):
                     port = ctx.port_to_cls[pname]
-                    nlog.info("port %s drop(ppm) %d tx_retry %d" %
-                              (port.name, port_drop_ppm(port),
+                    drop = port_drop_ppm(port)
+                    nlog.info("port %s drop_rx(ppm) %d drop_tx(ppm) %d"
+                              " tx_retry %d" %
+                              (port.name, drop[0], drop[1],
                                port_tx_retry(port)))
 
                 continue
@@ -884,7 +911,7 @@ def ncd_main(argv):
                     if (rctx.rebal_tick > rctx.rebal_tick_n):
                         rctx.rebal_tick = 0
                         cmd = rebalance_switch(pmd_map_balanced)
-                        rctx.rebal_stat[len(rctx.rebal_stat)] = datetime.now()
+                        ctx.events.append(("pmd", "rebalance", ctx.last_ts))
                         nlog.info(
                             "vswitch command for current optimization is: %s"
                             % cmd)
@@ -929,8 +956,10 @@ def ncd_main(argv):
                 nlog.info("current port drops:")
                 for pname in sorted(ctx.port_to_cls.keys()):
                     port = ctx.port_to_cls[pname]
-                    nlog.info("port %s drop(ppm) %d tx_retry %d" %
-                              (port.name, port_drop_ppm(port),
+                    drop = port_drop_ppm(port)
+                    nlog.info("port %s drop_rx(ppm) %d drop_tx(ppm) %d"
+                              " tx_retry %d" %
+                              (port.name, drop[0], drop[1],
                                port_tx_retry(port)))
 
         except error.NcdShutdownExc:
