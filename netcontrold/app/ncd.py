@@ -159,7 +159,7 @@ class CtlDThread(util.Thread):
                     conn.sendall(status.encode())
 
                 elif cmd == 'CTLD_VERSION':
-                    status = netcontrold.__version__
+                    status = "netcontrold v%s\n" % netcontrold.__version__
 
                     conn.sendall(b"CTLD_DATA_ACK %6d" % (len(status)))
                     conn.sendall(status.encode())
