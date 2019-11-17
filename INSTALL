@@ -6,25 +6,25 @@ To build rpm distribution:
 
 To build docker distribution:
     # build rpm
-    docker build -t netcontrold29:build . -f docker/Dockerfile.build
-    docker container create --name extract netcontrold29:build
+    docker build -t netcontrold:build . -f docker/Dockerfile.build
+    docker container create --name extract netcontrold:build
     mkdir -p dist
-    docker container cp extract:/usr/src/netcontrold-py/dist/netcontrold-1.0.el7-1.noarch.rpm ./dist/
+    docker container cp extract:/usr/src/netcontrold-py/dist .
 
     docker container rm -f extract
 
     # build container
-    docker build -t netcontrold29 . -f docker/Dockerfile
+    docker build -t netcontrold . -f docker/Dockerfile
 
     # run container
-    docker run --name ncd --pid=host -v /etc/openvswitch:/etc/openvswitch -v /var/lib/vhost_sockets:/var/lib/vhost_sockets -v /var/run/openvswitch:/var/run/openvswitch -dit netcontrold29:latest
+    docker run --name ncd --pid=host -v /etc/openvswitch:/etc/openvswitch -v /var/lib/vhost_sockets:/var/lib/vhost_sockets -v /var/run/openvswitch:/var/run/openvswitch -dit netcontrold:latest
     # stop ncd service in container
     docker exec ncd ncd_ctl stop
 
     # register docker image (quay.io for eg).
     docker login quay.io
-    docker commit ncd29 quay.io/<user_id>/ncd29
-    docker push quay.io/<user_id>/ncd29
+    docker commit ncd quay.io/<user_id>/ncd
+    docker push quay.io/<user_id>/ncd
  
 To deploy from Redhat Openstack Undercloud:
     cd docker
@@ -32,5 +32,5 @@ To deploy from Redhat Openstack Undercloud:
     ansible-playbook -i hosts.yaml deploy.yaml
 
 To attach running service:
-    docker attach --sig-proxy=false ncd29
+    docker attach --sig-proxy=false ncd
 
