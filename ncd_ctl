@@ -37,6 +37,9 @@ try:
             assert (sys.argv[2] in ('rebalance', 'debug'))
             assert (sys.argv[3] in ('on', 'off'))
 
+    else:
+        assert (False)
+
 except AssertionError:
     sys.stderr.write(USAGE)
     sys.exit(1)
