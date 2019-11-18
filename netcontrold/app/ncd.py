@@ -120,6 +120,26 @@ class CtlDThread(util.Thread):
 
                     conn.sendall(b"CTLD_ACK")
 
+                elif cmd == 'CTLD_VERBOSE_ON':
+                    fh = ctx.log_handler
+                    if fh.level == logging.INFO:
+                        nlog.info("turning on verbose mode ..")
+                        fh.setLevel(logging.DEBUG)
+                    else:
+                        nlog.info("verbose mode already on ..!")
+
+                    conn.sendall(b"CTLD_ACK")
+
+                elif cmd == 'CTLD_VERBOSE_OFF':
+                    fh = ctx.log_handler
+                    if fh.level == logging.DEBUG:
+                        nlog.info("turning off verbose mode ..")
+                        fh.setLevel(logging.INFO)
+                    else:
+                        nlog.info("verbose mode already off ..!")
+
+                    conn.sendall(b"CTLD_ACK")
+
                 elif cmd == 'CTLD_REBAL_CNT':
                     n = 0
                     if rctx.rebal_mode:
@@ -140,6 +160,13 @@ class CtlDThread(util.Thread):
 
                     status += "rebalance mode:"
                     if rctx.rebal_mode:
+                        status += " on\n"
+                    else:
+                        status += " off\n"
+
+                    status += "verbose log:"
+                    fh = ctx.log_handler
+                    if fh.level == logging.DEBUG:
                         status += " on\n"
                     else:
                         status += " off\n"
@@ -729,6 +756,7 @@ def ncd_main(argv):
 
     ctx = dataif.Context
     ctx.nlog = nlog
+    ctx.log_handler = fh
     pmd_map = ctx.pmd_map
 
     # set sampling interval to collect data
