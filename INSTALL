@@ -17,7 +17,7 @@ To build docker distribution:
     docker build -t netcontrold . -f docker/Dockerfile
 
     # run container
-    docker run --name ncd --pid=host -v /etc/openvswitch:/etc/openvswitch -v /var/lib/vhost_sockets:/var/lib/vhost_sockets -v /var/run/openvswitch:/var/run/openvswitch -dit netcontrold:latest
+    docker run --name ncd --pid=host -v /etc/openvswitch:/etc/openvswitch -v /var/lib/vhost_sockets:/var/lib/vhost_sockets -v /var/run/openvswitch:/var/run/openvswitch -v /sys/kernel/debug:/sys/kernel/debug -dit netcontrold:latest
     # stop ncd service in container
     docker exec ncd ncd_ctl stop
 
