@@ -25,7 +25,18 @@ Features
 Usage
 -----
 
-+-----------------------------------------------------------------------------------+
-|  ncd_ctl [start/stop/restart/status/rebalance-on/rebalance-off/trace-on/trace-off]|
-+-----------------------------------------------------------------------------------+
++------------------------------+
+|  usage: ncd_ctl CMD          |
+|                              |
+|  CMD in one of the below:    |
+|  start                       |
+|  stop                        |
+|  restart                     |
+|  status                      |
+|  config show                 |
+|  config rebalance <on|off>   |
+|  config trace <on|off>       |
+|  config verbose <on|off>     |
+|  version                     |
++------------------------------+
 
