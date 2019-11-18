@@ -148,7 +148,7 @@ class CtlDThread(util.Thread):
 
                 elif cmd == 'CTLD_STATUS':
                     status = "%-16s | %-12s | %s\n" % ('Interface',
-                                                     'Event', 'Time stamp')
+                                                       'Event', 'Time stamp')
                     status += ('-' * 17) + '+' + ('-' * 14) + '+' + ('-' * 28)
                     status += '\n'
 
