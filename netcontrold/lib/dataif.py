@@ -814,9 +814,9 @@ def get_interface_stats():
     port = None
 
     for line in data.splitlines():
-        if re.match(r'\s*name\s.*:\s"([A-Za-z0-9_-]+)"', line):
+        if re.match(r'\s*name\s.*:\s"*([A-Za-z0-9_-]+)"*', line):
             # In below matching line, we retrieve port id and name.
-            linesre = re.search(r'\s*name\s.*:\s"([A-Za-z0-9_-]+)"', line)
+            linesre = re.search(r'\s*name\s.*:\s"*([A-Za-z0-9_-]+)"*', line)
             (pname, ) = linesre.groups()
 
             # If in mid of sampling, we should have port_to_cls having
