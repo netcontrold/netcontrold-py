@@ -148,7 +148,7 @@ class CtlDThread(util.Thread):
 
                 elif cmd == 'CTLD_STATUS':
                     status = "%-16s | %-12s | %s\n" % ('Interface',
-                                                     'Event', 'Time stamp')
+                                                       'Event', 'Time stamp')
                     status += ('-' * 17) + '+' + ('-' * 14) + '+' + ('-' * 28)
                     status += '\n'
 
@@ -554,13 +554,14 @@ def collect_data(n_samples, s_sampling):
 
     # collect samples of pmd and rxq stats.
     for i in range(0, n_samples):
-        ctx.last_ts = datetime.now()
         dataif.get_port_stats()
         dataif.get_interface_stats()
         dataif.get_pmd_stats(ctx.pmd_map)
         dataif.get_pmd_rxqs(ctx.pmd_map)
         time.sleep(s_sampling)
 
+    now = datetime.now()
+    ctx.last_ts = now.strftime("%Y-%m-%d %H:%M:%S")
     update_pmd_load(ctx.pmd_map)
     rctx.rebal_tick += n_samples
 
@@ -807,17 +808,7 @@ def ncd_main(argv):
     # begin rebalance dry run
     while (1):
         try:
-            # dry-run only if atleast one pmd over loaded.
-            # or, atleast in mid of dry-runs.
-            if rctx.rebal_mode:
-                if (pmd_need_rebalance(pmd_map) or rebal_i):
-                    # dry run on collected stats
-                    pmd_map = rebalance_dryrun(pmd_map)
-                    rebal_i += 1
-
-            # collect samples of pmd and rxq stats.
-            collect_data(config.ncd_samples_max, ncd_sample_interval)
-
+            # do not debug if rebalance dry-run in progress.
             if dctx.debug_mode and not rebal_i:
                 pmd_cb_list = []
                 for pname in sorted(ctx.port_to_cls.keys()):
@@ -861,29 +852,33 @@ def ncd_main(argv):
                     data = util.exec_host_command(cmd)
                     nlog.info(data)
 
+            # dry-run only if atleast one pmd over loaded.
+            # or, atleast in mid of dry-runs.
             if rctx.rebal_mode:
-                cur_var = pmd_load_variance(pmd_map)
+                if (pmd_need_rebalance(pmd_map) or rebal_i):
+                    # dry run on collected stats
+                    pmd_map = rebalance_dryrun(pmd_map)
+                    rebal_i += 1
+
+            # collect samples of pmd and rxq stats.
+            collect_data(config.ncd_samples_max, ncd_sample_interval)
+
+            if not rctx.rebal_mode:
+                continue
+
+            cur_var = pmd_load_variance(pmd_map)
 
             # if no dry-run, go back to collect data again.
-            if rctx.rebal_mode and not rebal_i:
+            if not rebal_i:
                 nlog.info("no dryrun done performed. current pmd load:")
                 for pmd_id in sorted(pmd_map.keys()):
                     pmd = pmd_map[pmd_id]
                     nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
 
                 nlog.info("current pmd load variance: %d" % cur_var)
-                nlog.info("current port drops:")
-                for pname in sorted(ctx.port_to_cls.keys()):
-                    port = ctx.port_to_cls[pname]
-                    drop = port_drop_ppm(port)
-                    nlog.info("port %s drop_rx(ppm) %d drop_tx(ppm) %d"
-                              " tx_retry %d" %
-                              (port.name, drop[0], drop[1],
-                               port_tx_retry(port)))
-
                 continue
 
-            if rctx.rebal_mode and rebal_i:
+            else:
                 # compare previous and current state of pmds.
                 nlog.info("pmd load variance: best %d, dry run(%d) %d" %
                           (good_var, rebal_i, cur_var))
@@ -953,14 +948,6 @@ def ncd_main(argv):
                     nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
 
                 nlog.info("current pmd load variance: %d" % good_var)
-                nlog.info("current port drops:")
-                for pname in sorted(ctx.port_to_cls.keys()):
-                    port = ctx.port_to_cls[pname]
-                    drop = port_drop_ppm(port)
-                    nlog.info("port %s drop_rx(ppm) %d drop_tx(ppm) %d"
-                              " tx_retry %d" %
-                              (port.name, drop[0], drop[1],
-                               port_tx_retry(port)))
 
         except error.NcdShutdownExc:
             nlog.info("Exiting NCD ..")
