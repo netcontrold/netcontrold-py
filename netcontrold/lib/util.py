@@ -244,9 +244,9 @@ class Service:
 
         return 0
 
-    def debug(self, dbg_flag):
+    def trace(self, trace_flag):
         """
-        Enable or disable debug mode.
+        Enable or disable trace mode.
         """
         sock_file = config.ncd_socket
 
@@ -262,10 +262,10 @@ class Service:
             sys.exit(1)
 
         try:
-            if dbg_flag:
-                sock.sendall(b"CTLD_DEBUG_ON")
+            if trace_flag:
+                sock.sendall(b"CTLD_TRACE_ON")
             else:
-                sock.sendall(b"CTLD_DEBUG_OFF")
+                sock.sendall(b"CTLD_TRACE_OFF")
 
             ack_len = 0
             while (ack_len < len("CTLD_ACK")):

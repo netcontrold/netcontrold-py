@@ -45,8 +45,8 @@ class RebalContext(dataif.Context):
     apply_rebal = False
 
 
-class DebugContext(dataif.Context):
-    debug_mode = False
+class TraceContext(dataif.Context):
+    trace_mode = False
 
 
 nlog = None
@@ -82,23 +82,23 @@ class CtlDThread(util.Thread):
 
                 ctx = dataif.Context
                 rctx = RebalContext
-                dctx = DebugContext
+                tctx = TraceContext
 
-                if cmd == 'CTLD_DEBUG_ON':
-                    if not dctx.debug_mode:
-                        nlog.info("turning on debug mode ..")
-                        dctx.debug_mode = True
+                if cmd == 'CTLD_TRACE_ON':
+                    if not tctx.trace_mode:
+                        nlog.info("turning on trace mode ..")
+                        tctx.trace_mode = True
                     else:
-                        nlog.info("debug mode already on ..!")
+                        nlog.info("trace mode already on ..!")
 
                     conn.sendall(b"CTLD_ACK")
 
-                elif cmd == 'CTLD_DEBUG_OFF':
-                    if dctx.debug_mode:
-                        nlog.info("turning off debug mode ..")
-                        dctx.debug_mode = False
+                elif cmd == 'CTLD_TRACE_OFF':
+                    if tctx.trace_mode:
+                        nlog.info("turning off trace mode ..")
+                        tctx.trace_mode = False
                     else:
-                        nlog.info("debug mode already off ..!")
+                        nlog.info("trace mode already off ..!")
 
                     conn.sendall(b"CTLD_ACK")
 
@@ -152,8 +152,8 @@ class CtlDThread(util.Thread):
                     conn.sendall(str(n).encode())
 
                 elif cmd == 'CTLD_CONFIG':
-                    status = "debug mode:"
-                    if dctx.debug_mode:
+                    status = "trace mode:"
+                    if tctx.trace_mode:
                         status += " on\n"
                     else:
                         status += " off\n"
@@ -670,17 +670,17 @@ def ncd_main(argv):
                          default=10,
                          help='seconds between each sampling (default: 10)')
 
-    argpobj.add_argument('-d', '--debug',
+    argpobj.add_argument('-t', '--trace',
                          required=False,
                          action='store_true',
                          default=False,
-                         help='operate in debug mode',
+                         help='operate in trace mode',
                          )
 
-    argpobj.add_argument('--debug-cb',
+    argpobj.add_argument('--trace-cb',
                          type=str,
                          default='ncd_cb_pktdrop',
-                         help='debug mode callback '
+                         help='trace mode callback '
                          '(default: ncd_cb_pktdrop)')
 
     argpobj.add_argument('-r', '--rebalance',
@@ -715,17 +715,17 @@ def ncd_main(argv):
     argpobj.add_argument('-v', '--verbose',
                          action='store_true',
                          default=False,
-                         help='debug logging (default: False)')
+                         help='trace logging (default: False)')
 
     args = argpobj.parse_args(argv)
 
     # check input to ncd
-    ncd_debug = args.debug
-    ncd_debug_cb = args.debug_cb
+    ncd_trace = args.trace
+    ncd_trace_cb = args.trace_cb
     ncd_rebal = args.rebalance
 
-    if ncd_debug and not util.exists(ncd_debug_cb):
-        print("no such program %s exists!" % ncd_debug_cb)
+    if ncd_trace and not util.exists(ncd_trace_cb):
+        print("no such program %s exists!" % ncd_trace_cb)
         sys.exit(1)
 
     # set verbose level
@@ -801,9 +801,9 @@ def ncd_main(argv):
     signal.signal(signal.SIGINT, ncd_kill)
     signal.signal(signal.SIGTERM, ncd_kill)
 
-    dctx = DebugContext
-    if ncd_debug:
-        dctx.debug_mode = True
+    tctx = TraceContext
+    if ncd_trace:
+        tctx.trace_mode = True
 
     # start ctld thread to monitor control command and dispatch
     # necessary action.
@@ -844,8 +844,8 @@ def ncd_main(argv):
     # begin rebalance dry run
     while (1):
         try:
-            # do not debug if rebalance dry-run in progress.
-            if dctx.debug_mode and not rebal_i:
+            # do not trace if rebalance dry-run in progress.
+            if tctx.trace_mode and not rebal_i:
                 pmd_cb_list = []
                 for pname in sorted(ctx.port_to_cls.keys()):
                     port = ctx.port_to_cls[pname]
@@ -873,7 +873,7 @@ def ncd_main(argv):
                         do_cb = True
 
                     if not do_cb:
-                        # no pmd needs to be debugged.
+                        # no pmd needs to be traceged.
                         continue
 
                     for pmd_id in sorted(pmd_map.keys()):
@@ -883,7 +883,7 @@ def ncd_main(argv):
 
                 if (len(pmd_cb_list) > 0):
                     pmds = " ".join(list(map(str, set(pmd_cb_list))))
-                    cmd = "%s %s" % (ncd_debug_cb, pmds)
+                    cmd = "%s %s" % (ncd_trace_cb, pmds)
                     nlog.info("executing callback %s" % cmd)
                     data = util.exec_host_command(cmd)
                     nlog.info(data)

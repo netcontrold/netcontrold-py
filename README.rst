@@ -19,13 +19,13 @@ Features
 --------
 
  * Rebalance mode (load balance on PMD threads)
- * Debug mode (call back user script in the event of heavy packet drops)
+ * Trace mode (call back user script in the event of heavy packet drops)
  * Enable/disable its modes in run time.
 
 Usage
 -----
 
 +-----------------------------------------------------------------------------------+
-|  ncd_ctl [start/stop/restart/status/rebalance-on/rebalance-off/debug-on/debug-off]|
+|  ncd_ctl [start/stop/restart/status/rebalance-on/rebalance-off/trace-on/trace-off]|
 +-----------------------------------------------------------------------------------+
 
