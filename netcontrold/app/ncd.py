@@ -18,6 +18,7 @@
 __all__ = ['ncd_main']
 
 # import system libraries
+import re
 import signal
 import time
 import argparse
@@ -160,6 +161,13 @@ class CtlDThread(util.Thread):
 
                 elif cmd == 'CTLD_VERSION':
                     status = "netcontrold v%s\n" % netcontrold.__version__
+                    ret = util.exec_host_command("ovs-vsctl -V")
+                    if ret == 1:
+                        status += "openvswitch (unknown)\n"
+                    else:
+                        parse = re.match("ovs-vsctl \(Open vSwitch\) (.*?)\n",
+                                         ret)
+                        status += "openvswitch v%s\n" % parse[1]
 
                     conn.sendall(b"CTLD_DATA_ACK %6d" % (len(status)))
                     conn.sendall(status.encode())
