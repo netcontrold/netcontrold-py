@@ -554,13 +554,14 @@ def collect_data(n_samples, s_sampling):
 
     # collect samples of pmd and rxq stats.
     for i in range(0, n_samples):
-        ctx.last_ts = datetime.now()
         dataif.get_port_stats()
         dataif.get_interface_stats()
         dataif.get_pmd_stats(ctx.pmd_map)
         dataif.get_pmd_rxqs(ctx.pmd_map)
         time.sleep(s_sampling)
 
+    now = datetime.now()
+    ctx.last_ts = now.strftime("%Y-%m-%d %H:%M:%S")
     update_pmd_load(ctx.pmd_map)
     rctx.rebal_tick += n_samples
 
