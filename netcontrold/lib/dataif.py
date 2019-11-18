@@ -35,6 +35,7 @@ class Context():
     nlog = None
     last_ts = None
     events = []
+    log_handler = None
 
 
 nlog = Context.nlog

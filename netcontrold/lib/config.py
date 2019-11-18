@@ -42,7 +42,7 @@ ncd_log_file = "/var/log/netcontrold/ncd.log"
 ncd_log_max_KB = 1024
 ncd_log_max_backup_n = 1
 
-# Minimum threshold (in ppm) for packet drop to call back debug actions.
+# Minimum threshold (in ppm) for packet drop to call back trace actions.
 ncd_cb_pktdrop_min = 10000
 
 # Unix socket file
