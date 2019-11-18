@@ -27,9 +27,9 @@ To build docker distribution:
     docker push quay.io/<user_id>/ncd
  
 To deploy from Redhat Openstack Undercloud:
-    cd docker
+    cd ansible
     tripleo-ansible-inventory --static-yaml-inventory hosts.yaml
-    ansible-playbook -i hosts.yaml deploy.yaml
+    ansible-playbook -i hosts.yaml openstack-deploy.yaml
 
 To attach running service:
     docker attach --sig-proxy=false ncd

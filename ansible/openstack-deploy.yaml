@@ -7,11 +7,12 @@
   tasks:
     - name: run netcontrold container
       docker_container:
-        name: ncd29
-        image: quay.io/gshankarmk/ncd29:latest
+        name: ncd
+        image: quay.io/netcontrold/netcontrold-py-ovs-2-11:latest
         volumes:
           - /etc/openvswitch:/etc/openvswitch
           - /var/lib/vhost_sockets:/var/lib/vhost_sockets
           - /var/run/openvswitch:/var/run/openvswitch
+          - /sys/kernel/debug:/sys/kernel/debug
         pid_mode: host
         state: started
