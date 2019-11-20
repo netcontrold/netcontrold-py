@@ -614,10 +614,12 @@ def rebalance_switch(pmd_map):
     """
 
     port_to_pmdq = {}
+    non_isol_pmds = []
     numa = 0
     for pmd_id, pmd in pmd_map.items():
         # leave one pmd in every numa as non-isolated.
         if pmd.numa_id == numa:
+            non_isol_pmds.append(pmd)
             numa += 1
             continue
 
@@ -632,6 +634,12 @@ def rebalance_switch(pmd_map):
         cmd += "-- set Interface %s other_config:pmd-rxq-affinity=%s " % (
             port_name, pmdq)
 
+    # ensure non-isolated pmd carry new rxqs, arriving from other pmds.
+    for pmd in non_isol_pmds:
+        for port_name, port in pmd.port_map.items():
+            if port_name not in port_to_pmdq:
+                cmd += "-- remove Interface %s other_config pmd-rxq-affinity "\
+                        % (port_name)
     return "ovs-vsctl --no-wait %s" % cmd
 
 
