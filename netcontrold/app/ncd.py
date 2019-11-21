@@ -629,14 +629,32 @@ def rebalance_switch(pmd_map):
             for rxq_id in port.rxq_map:
                 port_to_pmdq[port_name] += "%d:%d," % (rxq_id, pmd_id)
 
+    # refresh ports info and check for any port removed now.
+    ctx = dataif.Context
+    ctx.port_to_id.clear()
+    dataif.get_port_stats()
     cmd = ""
     for port_name, pmdq in port_to_pmdq.items():
+        if port_name not in ctx.port_to_id:
+            now = datetime.now()
+            now_ts = now.strftime("%Y-%m-%d %H:%M:%S")
+            nlog.info("not setting affinity for an unavailable port %s"\
+                      % (port_name))
+            ctx.events.append((port_name, "skip", now_ts))
+            continue
         cmd += "-- set Interface %s other_config:pmd-rxq-affinity=%s " % (
             port_name, pmdq)
 
     # ensure non-isolated pmd carry new rxqs, arriving from other pmds.
     for pmd in non_isol_pmds:
         for port_name, port in pmd.port_map.items():
+            if port_name not in ctx.port_to_id:
+                now = datetime.now()
+                now_ts = now.strftime("%Y-%m-%d %H:%M:%S")
+                nlog.info("not resetting affinity for unavailable port %s"\
+                          % (port_name))
+                ctx.events.append((port_name, "skip", now_ts))
+                continue
             if port_name not in port_to_pmdq:
                 cmd += "-- remove Interface %s other_config pmd-rxq-affinity "\
                         % (port_name)
@@ -960,7 +978,9 @@ def ncd_main(argv):
                             nlog.info(
                                 "problem running this command.. "
                                 "check vswitch!")
-                            sys.exit(1)
+                            now = datetime.now()
+                            now_ts = now.strftime("%Y-%m-%d %H:%M:%S")
+                            ctx.events.append(("switch", "error", now_ts))
 
                         # sleep for few seconds before thrashing current
                         # dry-run
@@ -979,6 +999,7 @@ def ncd_main(argv):
                 # reset collected data
                 pmd_map.clear()
                 ctx.port_to_cls.clear()
+                ctx.port_to_id.clear()
 
                 collect_data(config.ncd_samples_max, ncd_sample_interval)
 
