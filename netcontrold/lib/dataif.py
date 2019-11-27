@@ -829,6 +829,9 @@ def get_interface_stats():
                            (port.name, port.cyc_idx))
 
         elif re.match(r'\s*type\s.*:\s([a-z]+)', line):
+            if not port:
+                continue
+
             # From other lines, we retrieve stats of the port.
             linesre = re.search(
                 r'\s*type\s.*:\s([a-z]+)', line)
@@ -836,6 +839,9 @@ def get_interface_stats():
             port.type = type
 
         elif re.match(r'\s*statistics\s.*:\s{(.*)}', line):
+            if not port:
+                continue
+
             # From other lines, we retrieve stats of the port.
             linesre = re.search(
                 r'\s*statistics\s.*:\s{(.*)}', line)
@@ -845,5 +851,7 @@ def get_interface_stats():
 
             if 'tx_retries' in dval:
                 port.tx_retry_cyc[port.cyc_idx] = int(dval['tx_retries'])
+
+            port = None
 
     return None
