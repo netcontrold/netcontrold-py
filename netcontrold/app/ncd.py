@@ -426,7 +426,12 @@ def rebalance_dryrun_rr(pmd_map):
     update_pmd_load(pmd_map)
 
     # Sort pmds in pmd_map based on the id (i.e constant order)
-    pmd_list_forward = sorted(pmd_map.values(), key=lambda o: o.id)
+    rr_cpus = util.rr_cpu_in_numa()
+    pmd_list_forward = []
+    for cpu in rr_cpus:
+        if cpu in pmd_map:
+            pmd_list_forward.append(pmd_map[cpu])
+
     pmd_list_reverse = pmd_list_forward[::-1]
     pmd_list = pmd_list_forward
     idx_forward = True
@@ -638,7 +643,7 @@ def rebalance_switch(pmd_map):
         if port_name not in ctx.port_to_id:
             now = datetime.now()
             now_ts = now.strftime("%Y-%m-%d %H:%M:%S")
-            nlog.info("not setting affinity for an unavailable port %s"\
+            nlog.info("not setting affinity for an unavailable port %s"
                       % (port_name))
             ctx.events.append((port_name, "skip", now_ts))
             continue
@@ -651,13 +656,13 @@ def rebalance_switch(pmd_map):
             if port_name not in ctx.port_to_id:
                 now = datetime.now()
                 now_ts = now.strftime("%Y-%m-%d %H:%M:%S")
-                nlog.info("not resetting affinity for unavailable port %s"\
+                nlog.info("not resetting affinity for unavailable port %s"
                           % (port_name))
                 ctx.events.append((port_name, "skip", now_ts))
                 continue
             if port_name not in port_to_pmdq:
                 cmd += "-- remove Interface %s other_config pmd-rxq-affinity "\
-                        % (port_name)
+                    % (port_name)
     return "ovs-vsctl --no-wait %s" % cmd
 
 

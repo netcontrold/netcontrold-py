@@ -17,6 +17,7 @@
 __all__ = ['exec_host_command',
            'exists',
            'variance',
+           'rr_cpu_in_numa',
            ]
 
 # Import standard modules
@@ -31,6 +32,78 @@ import threading
 
 from netcontrold.lib import error
 from netcontrold.lib import config
+
+
+class Memoize:
+    """
+    Class to cache function returns.
+    """
+
+    def __init__(self, fn):
+        self._fn = fn
+        self._cache = dict()
+
+    def __call__(self, *args):
+        if args not in self._cache:
+            self._cache[args] = self._fn(*args)
+
+        return self._cache[args]
+
+
+def cpuinfo():
+    proc_list = []
+    with open('/proc/cpuinfo') as f:
+        lines = f.readlines()
+
+    for line in lines:
+        line = line.strip()
+        if line == '':
+            continue
+
+        regex = re.compile('^(.*?)\s*:\s*(.*)')
+        (param, val) = regex.match(line).groups()
+
+        if param == 'processor':
+            proc_list.append({})
+
+        proc_list[-1][param] = val
+
+    f.close()
+    return proc_list
+
+
+def numa_cpu_map():
+    cpu_list = cpuinfo()
+    numa_map = dict()
+
+    for cpu in cpu_list:
+        pid = int(cpu['processor'])
+        cid = int(cpu['core id'])
+        nid = int(cpu['physical id'])
+
+        if nid not in numa_map:
+            numa_map[nid] = {}
+
+        if cid not in numa_map[nid]:
+            numa_map[nid][cid] = []
+
+        core = numa_map[nid][cid]
+        if pid not in core:
+            core.append(pid)
+
+    return numa_map
+
+
+@Memoize
+def rr_cpu_in_numa():
+    numa_map = numa_cpu_map()
+    numa_cpus = []
+
+    for cpus in numa_map.values():
+        list = sorted(cpus.values())
+        numa_cpus += list
+
+    return sum(numa_cpus, [])
 
 
 def exec_host_command(cmd):
