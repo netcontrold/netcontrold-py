@@ -474,7 +474,7 @@ def rebalance_dryrun_rr(pmd_map):
                 idx_forward = False
             else:
                 pmd_list = pmd_list_forward
-                idx_forward = False
+                idx_forward = True
             rpmd_gen = (o for o in pmd_list)
 
         if pmd.id == rpmd.id:
