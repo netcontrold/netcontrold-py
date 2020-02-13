@@ -8,7 +8,7 @@
     - name: run netcontrold container
       docker_container:
         name: ncd
-        image: quay.io/netcontrold/netcontrold-py-ovs-2-11:latest
+        image: quay.io/netcontrold/netcontrold-py:latest
         volumes:
           - /var/run/openvswitch:/var/run/openvswitch
           - /sys/kernel/debug:/sys/kernel/debug
