@@ -13,4 +13,5 @@
           - /var/run/openvswitch:/var/run/openvswitch
           - /sys/kernel/debug:/sys/kernel/debug
         pid_mode: host
+        command: "/usr/local/bin/ncd_watch"
         state: started
