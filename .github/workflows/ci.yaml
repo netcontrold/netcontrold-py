@@ -19,7 +19,8 @@ jobs:
         target_build: [master]
 
     steps:
-      - uses: actions/checkout@v1
+      - name: Checkout ${{ matrix.target_build }} branch
+        uses: actions/checkout@v1
         with:
           ref: ${{ matrix.target_build }}
       - name: Setup python ${{ matrix.python-version }}
