@@ -16,9 +16,11 @@ jobs:
       matrix:
         python: ['3.6', '3.7']
         os: [ubuntu-latest]
+        target_build: [master]
 
     steps:
-      - uses: actions/checkout@test
+      - name: checkout for ${{ matrix.build }}
+        uses: actions/checkout@${{ matrix.build }}
       - name: Setup python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
