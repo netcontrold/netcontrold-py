@@ -19,8 +19,9 @@ jobs:
         target_build: [master]
 
     steps:
-      - name: checkout for ${{ matrix.build }}
-        uses: actions/checkout@${{ matrix.build }}
+      - uses: actions/checkout@v1
+        with:
+          ref: ${{ matrix.target_build }}
       - name: Setup python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
