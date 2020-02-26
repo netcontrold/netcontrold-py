@@ -21,6 +21,8 @@ from netcontrold.lib import util
 _BASIC_CPU_INFO = """
 processor	: 0
 """
+
+
 class TestUtil(TestCase):
 
     @mock.patch('netcontrold.lib.util.open')
