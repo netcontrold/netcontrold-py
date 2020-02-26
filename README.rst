@@ -1,3 +1,8 @@
+|Generic badge|
+
+.. |Generic badge| image:: https://github.com/netcontrold/netcontrold-py/workflows/CI/badge.svg?branch=master
+   :target: https://github.com/netcontrold/netcontrold-py/workflows/CI/badge.svg?branch=master
+   
 Netcontrold
 ===========
 
