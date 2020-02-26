@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - test
+      - master
 
 jobs:
   build:
@@ -16,7 +16,7 @@ jobs:
       matrix:
         python: ['3.6']
         os: [ubuntu-latest]
-        target_build: [test]
+        target_build: [master]
 
     steps:
       - uses: actions/checkout@v1
