@@ -16,7 +16,7 @@ jobs:
       matrix:
         python: ['3.6', '3.7']
         os: [ubuntu-latest]
-        target_build: [master]
+        target_build: [test]
 
     steps:
       - uses: actions/checkout@v1
