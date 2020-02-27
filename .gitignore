@@ -10,3 +10,4 @@ build
 dist
 netcontrold.egg-info
 .tox/
+.eggs/
