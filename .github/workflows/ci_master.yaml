@@ -1,9 +1,12 @@
-name: CI
+name: CI on master branch
 
 on:
   push:
     branches:
-      - '*'
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   build:
@@ -16,13 +19,12 @@ jobs:
       matrix:
         python: ['3.6']
         os: [ubuntu-latest]
-        target_build: [master]
 
     steps:
-      - name: Checkout ${{ matrix.target_build }} branch
+      - name: Checkout master branch
         uses: actions/checkout@v1
         with:
-          ref: ${{ matrix.target_build }}
+          ref: master
       - name: Setup python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
