@@ -63,10 +63,17 @@ def cpuinfo():
         regex = re.compile('^(.*?)\s*:\s*(.*)')
         (param, val) = regex.match(line).groups()
 
+        if param == 'processor' and val=='':
+            raise ValueError("Value cannot be null")
+
         if param == 'processor':
             proc_list.append({})
 
-        proc_list[-1][param] = val
+        if(len(proc_list)>=1):
+            proc_list[-1][param] = val
+        else:
+            raise ValueError("proc_list cannot be empty")
+
 
     f.close()
     return proc_list
