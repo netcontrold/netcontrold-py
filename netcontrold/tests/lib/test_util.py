@@ -208,5 +208,3 @@ class TestUtil(TestCase):
         ]
         self.assertRaises(ValueError,util.rr_cpu_in_numa)
 
-    
-
