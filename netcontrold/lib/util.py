@@ -66,7 +66,7 @@ def cpuinfo():
         if ((param == 'processor' and val == '') or
            (param == 'core id' and val == '') or
            (param == 'physical id' and val == '')):
-            raise ValueError("Value %s cannot be null",(param))
+            raise ValueError("Value %s cannot be null" %(param))
 
         if param == 'processor':
             proc_list.append({})
