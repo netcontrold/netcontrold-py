@@ -63,7 +63,7 @@ def cpuinfo():
         regex = re.compile('^(.*?)\s*:\s*(.*)')
         (param, val) = regex.match(line).groups()
 
-        if param == 'processor' and val == '':
+        if (param == 'processor' and val == '') or (param == 'core id' and val == '') or (param == 'physical id' and val == '') :
             raise ValueError("Value cannot be null")
 
         if param == 'processor':
