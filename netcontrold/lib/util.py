@@ -60,10 +60,11 @@ def cpuinfo():
         if line == '':
             continue
 
-        regex = re.compile('^(.*?)\s*:\s*(.*)')
+        regex = re.compile(r'^(.*?)\s*:\s*(.*)')
         (param, val) = regex.match(line).groups()
 
-        if (param == 'processor' and val == '') or (param == 'core id' and val == '') or (param == 'physical id' and val == '') :
+        if (param == 'processor' and val == '') or (
+                param == 'core id' and val == '') or (param == 'physical id' and val == ''):
             raise ValueError("Value cannot be null")
 
         if param == 'processor':
@@ -277,7 +278,7 @@ class Service:
                 data = sock.recv(len("CTLD_DATA_ACK XXXXXX"))
                 ack_len += len(data)
 
-            status_len = int(re.findall('\d+', data.decode())[0])
+            status_len = int(re.findall(r'\d+', data.decode())[0])
             data_len = 0
             while (data_len < status_len):
                 data = sock.recv(status_len).decode()
@@ -413,7 +414,7 @@ class Service:
                 data = sock.recv(len("CTLD_DATA_ACK XXXXXX"))
                 ack_len += len(data)
 
-            status_len = int(re.findall('\d+', data.decode())[0])
+            status_len = int(re.findall(r'\d+', data.decode())[0])
             data_len = 0
             while (data_len < status_len):
                 data = sock.recv(status_len).decode()
@@ -450,7 +451,7 @@ class Service:
                 data = sock.recv(len("CTLD_DATA_ACK XXXXXX"))
                 ack_len += len(data)
 
-            status_len = int(re.findall('\d+', data.decode())[0])
+            status_len = int(re.findall(r'\d+', data.decode())[0])
             data_len = 0
             while (data_len < status_len):
                 data = sock.recv(status_len).decode()
