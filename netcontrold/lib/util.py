@@ -64,7 +64,7 @@ def cpuinfo():
         (param, val) = regex.match(line).groups()
 
         if (param == 'processor' and val == '') or (
-                param == 'core id' and val == '') or (param == 'physical' and val == ''):
+                param == 'core id' and val == '') or (param == 'physical id' and val == ''):
             raise ValueError("Value cannot be null")
 
         if param == 'processor':
