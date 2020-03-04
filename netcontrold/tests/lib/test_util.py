@@ -129,7 +129,7 @@ physical id     : 0
 """
 
 
-class TestUtil(TestCase):
+class TestUtil_cpuinfo(TestCase):
 
     @mock.patch('netcontrold.lib.util.open')
     def test_cpuinfo_basic_proclist(self, mock_open):
@@ -179,6 +179,8 @@ class TestUtil(TestCase):
         out = util.cpuinfo()
         expected = []
         self.assertEqual(out, expected)
+
+
 
     @mock.patch('netcontrold.lib.util.open')
     def test_numa_cpu_map_positive(self, mock_open):
