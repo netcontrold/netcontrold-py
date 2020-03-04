@@ -180,6 +180,7 @@ class TestUtil_cpuinfo(TestCase):
         expected = []
         self.assertEqual(out, expected)
 
+
 class TestUtil_numa_cpu_map(TestCase):
 
     @mock.patch('netcontrold.lib.util.open')
@@ -197,6 +198,7 @@ class TestUtil_numa_cpu_map(TestCase):
             mock.mock_open(read_data=_BASIC_CPU_INFO_0_physicalid).return_value
         ]
         self.assertRaises(ValueError, util.numa_cpu_map)
+
 
 class TestUtil_rr_cpu_in_numa(TestCase):
 
