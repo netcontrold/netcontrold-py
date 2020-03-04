@@ -95,14 +95,14 @@ class TestUtil_cpuinfo(TestCase):
     def test_cpuinfo_coreid(self, mock_open):
         mock_open.side_effect = [
             mock.mock_open(
-                read_data=_BASIC_CPU_INFO_Processorid_NULL).return_value]
+                read_data=_BASIC_CPU_INFO_coreid_NULL).return_value]
         self.assertRaises(ValueError, util.cpuinfo)
 
     @mock.patch('netcontrold.lib.util.open')
     def test_cpuinfo_physical(self, mock_open):
         mock_open.side_effect = [
             mock.mock_open(
-                read_data=_BASIC_CPU_INFO_Processorid_NULL).return_value]
+                read_data=_BASIC_CPU_INFO_physical_NULL).return_value]
         self.assertRaises(ValueError, util.cpuinfo)
 
     @mock.patch('netcontrold.lib.util.open')
@@ -134,28 +134,28 @@ class TestUtil_numa_cpu_map(TestCase):
         mock_open.side_effect = [
             mock.mock_open(read_data=_BASIC_CPU_INFO_Negative).return_value
         ]
-        self.assertRaises(ValueError, util.cpuinfo)
+        self.assertRaises(ValueError, util.numa_cpu_map)
 
     @mock.patch('netcontrold.lib.util.open')
     def test_numa_cpu_map_Processorid(self, mock_open):
         mock_open.side_effect = [
             mock.mock_open(
                 read_data=_BASIC_CPU_INFO_Processorid_NULL).return_value]
-        self.assertRaises(ValueError, util.cpuinfo)
+        self.assertRaises(ValueError, util.numa_cpu_map)
 
     @mock.patch('netcontrold.lib.util.open')
     def test_numa_cpu_map_coreid(self, mock_open):
         mock_open.side_effect = [
             mock.mock_open(
-                read_data=_BASIC_CPU_INFO_Processorid_NULL).return_value]
-        self.assertRaises(ValueError, util.cpuinfo)
+                read_data=_BASIC_CPU_INFO_coreid_NULL).return_value]
+        self.assertRaises(ValueError, util.numa_cpu_map)
 
     @mock.patch('netcontrold.lib.util.open')
     def test_numa_cpu_map_physical(self, mock_open):
         mock_open.side_effect = [
             mock.mock_open(
-                read_data=_BASIC_CPU_INFO_Processorid_NULL).return_value]
-        self.assertRaises(ValueError, util.cpuinfo)
+                read_data=_BASIC_CPU_INFO_physical_NULL).return_value]
+        self.assertRaises(ValueError, util.numa_cpu_map)
 
     @mock.patch('netcontrold.lib.util.open')
     def test_numa_cpu_map_basic(self, mock_open):
@@ -164,4 +164,30 @@ class TestUtil_numa_cpu_map(TestCase):
         ]
         out = util.numa_cpu_map()
         expected = {0: {0: [0, 1], 1: [2, 3]}}
+        self.assertEqual(out, expected)
+
+
+class TestUtil_rr_cpu_in_numa(TestCase):
+
+    @mock.patch('netcontrold.lib.util.open')
+    def test_rr_cpu_in_numa_Negative(self, mock_open):
+        mock_open.side_effect = [
+            mock.mock_open(read_data=_BASIC_CPU_INFO_Negative).return_value
+        ]
+        self.assertRaises(ValueError, util.rr_cpu_in_numa)
+
+    @mock.patch('netcontrold.lib.util.open')
+    def test_rr_cpu_in_numa_Processorid(self, mock_open):
+        mock_open.side_effect = [
+            mock.mock_open(
+                read_data=_BASIC_CPU_INFO_Processorid_NULL).return_value]
+        self.assertRaises(ValueError, util.rr_cpu_in_numa)
+
+    @mock.patch('netcontrold.lib.util.open')
+    def test_rr_cpu_in_numa_basic(self, mock_open):
+        mock_open.side_effect = [
+            mock.mock_open(read_data=_BASIC_CPU_INFO_Positive).return_value
+        ]
+        out = util.rr_cpu_in_numa()
+        expected = [0, 1, 2, 3]
         self.assertEqual(out, expected)
