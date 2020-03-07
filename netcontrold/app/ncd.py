@@ -39,6 +39,7 @@ from netcontrold.lib import error
 
 class RebalContext(dataif.Context):
     rebal_mode = False
+    rebal_quick = False
     rebal_tick = 0
     rebal_tick_n = 0
     apply_rebal = False
@@ -77,7 +78,7 @@ class CtlDThread(util.Thread):
             conn, client = sock.accept()
 
             try:
-                cmd = conn.recv(16).decode()
+                cmd = conn.recv(24).decode()
 
                 ctx = dataif.Context
                 rctx = RebalContext
@@ -116,6 +117,24 @@ class CtlDThread(util.Thread):
                         rctx.rebal_mode = False
                     else:
                         nlog.info("rebalance mode already off ..!")
+
+                    conn.sendall(b"CTLD_ACK")
+
+                elif cmd == 'CTLD_REBAL_QUICK_ON':
+                    if not rctx.rebal_quick:
+                        nlog.info("turning on rebalance quick mode ..")
+                        rctx.rebal_quick = True
+                    else:
+                        nlog.info("rebalance quick mode already on ..!")
+
+                    conn.sendall(b"CTLD_ACK")
+
+                elif cmd == 'CTLD_REBAL_QUICK_OFF':
+                    if rctx.rebal_quick:
+                        nlog.info("turning off rebalance quick mode ..")
+                        rctx.rebal_quick = False
+                    else:
+                        nlog.info("rebalance quick mode already off ..!")
 
                     conn.sendall(b"CTLD_ACK")
 
@@ -159,6 +178,12 @@ class CtlDThread(util.Thread):
 
                     status += "rebalance mode:"
                     if rctx.rebal_mode:
+                        status += " on\n"
+                    else:
+                        status += " off\n"
+
+                    status += "rebalance quick:"
+                    if rctx.rebal_quick:
                         status += " on\n"
                     else:
                         status += " off\n"
@@ -506,6 +531,12 @@ def ncd_main(argv):
     # begin rebalance dry run
     while (1):
         try:
+            # for quick rebalance action, one sample is sufficient
+            if rctx.rebal_quick:
+                ncd_samples_max = 1
+            else:
+                ncd_samples_max = config.ncd_samples_max
+
             # do not trace if rebalance dry-run in progress.
             if tctx.trace_mode and not rebal_i:
                 pmd_cb_list = []
@@ -555,7 +586,7 @@ def ncd_main(argv):
                 rebal_i += 1
 
             # collect samples of pmd and rxq stats.
-            collect_data(config.ncd_samples_max, ncd_sample_interval)
+            collect_data(ncd_samples_max, ncd_sample_interval)
 
             if not rctx.rebal_mode:
                 continue
@@ -632,7 +663,7 @@ def ncd_main(argv):
                 ctx.port_to_cls.clear()
                 ctx.port_to_id.clear()
 
-                collect_data(config.ncd_samples_max, ncd_sample_interval)
+                collect_data(ncd_samples_max, ncd_sample_interval)
 
                 cur_var = dataif.pmd_load_variance(pmd_map)
                 rebal_i = 0

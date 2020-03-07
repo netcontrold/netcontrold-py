@@ -327,6 +327,39 @@ class Service:
 
         return 0
 
+    def rebalance_quick(self, quick_flag):
+        """
+        Enable or disable quick rebalance.
+        """
+        sock_file = config.ncd_socket
+
+        if not os.path.exists(sock_file):
+            sys.stderr.write("socket %s not found.. exiting.\n" % sock_file)
+            sys.exit(1)
+
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.connect(sock_file)
+        except socket.error as e:
+            sys.stderr.write("unable to connect %s: %s\n" % (sock_file, e))
+            sys.exit(1)
+
+        try:
+            if quick_flag:
+                sock.sendall(b"CTLD_REBAL_QUICK_ON")
+            else:
+                sock.sendall(b"CTLD_REBAL_QUICK_OFF")
+
+            ack_len = 0
+            while (ack_len < len("CTLD_ACK")):
+                data = sock.recv(64)
+                ack_len += len(data)
+
+        finally:
+            sock.close()
+
+        return 0
+
     def trace(self, trace_flag):
         """
         Enable or disable trace mode.

@@ -19,6 +19,7 @@ USAGE = "usage: ncd_ctl CMD\n" \
         "  status\n" \
         "  config show\n" \
         "  config rebalance <on|off>\n" \
+        "  config rebalance_quick <on|off>\n" \
         "  config trace <on|off>\n" \
         "  config verbose <on|off>\n" \
         "  version\n" \
@@ -35,7 +36,7 @@ try:
             assert (sys.argv[2] == 'show')
         else:
             assert (len(sys.argv) == 4)
-            assert (sys.argv[2] in ('rebalance', 'trace', 'verbose'))
+            assert (sys.argv[2] in ('rebalance', 'rebalance_quick', 'trace', 'verbose'))
             assert (sys.argv[3] in ('on', 'off'))
 
     else:
@@ -77,6 +78,8 @@ elif sys.argv[1] == 'config':
             main_srv.verbose(flag)
         elif sys.argv[2] == 'rebalance':
             main_srv.rebalance(flag)
+        elif sys.argv[2] == 'rebalance_quick':
+            main_srv.rebalance_quick(flag)
         else:
             main_srv.trace(flag)
 
