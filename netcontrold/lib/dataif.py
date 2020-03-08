@@ -405,6 +405,29 @@ class Dataif_Pmd(object):
                     pstr += "    rxq %d cpu_cyc[%d] %d\n" % (rxq_id, i, elm)
         return pstr
 
+    def __eq__(self, other):
+        """
+        Define the method to compare between objects of this class.
+        """
+        if not isinstance(other, self.__class__):
+            return False
+
+        if not ((self.id == other.id) and
+                (self.numa_id == other.numa_id) and
+                (sorted(self.rx_cyc) == sorted(other.rx_cyc)) and
+                (sorted(self.idle_cpu_cyc) == sorted(other.idle_cpu_cyc)) and
+                (sorted(self.proc_cpu_cyc) == sorted(other.proc_cpu_cyc)) and
+                (self.isolated == other.isolated) and
+                (self.pmd_load == other.pmd_load) and
+                (self.port_map == other.port_map)):
+            return False
+
+        # all equals otherwise.
+        return True
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def find_port_by_name(self, name):
         """
         Return Dataif_Port of this name, if available in pmd.port_map .
