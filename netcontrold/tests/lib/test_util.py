@@ -223,6 +223,9 @@ class TestUtil_numa_cpu_map(TestCase):
 
 class TestUtil_rr_cpu_in_numa(TestCase):
 
+    def setUp(self):
+        util.Memoize.forgot = True
+
     @mock.patch('netcontrold.lib.util.open')
     def test_rr_cpu_in_numa_basic_proclist(self, mock_open):
         mock_open.side_effect = [
