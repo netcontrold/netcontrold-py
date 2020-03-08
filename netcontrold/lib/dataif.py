@@ -281,6 +281,24 @@ def make_dataif_port(port_name=None):
             super(Dataif_Port, self).__init__(self.name)
             self.rxq_rebalanced = {}
 
+        def __eq__(self, other):
+            """
+            Define the method to compare between objects of this class.
+            """
+            if not isinstance(other, self.__class__):
+                return False
+
+            if not ((self.name == other.name) and
+                    (self.type == other.type) and
+                    (self.rxq_rebalanced == other.rxq_rebalanced)):
+                return False
+
+            # all equals otherwise.
+            return True
+
+        def __ne__(self, other):
+            return not self.__eq__(other)
+
         @classmethod
         def __cls_repr__(cls):
             pstr = ""
