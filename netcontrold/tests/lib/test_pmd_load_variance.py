@@ -59,7 +59,7 @@ class TestUtil_pmd_load_variance(TestCase):
 
 #   @mock.patch('netcontrold.app.ncd.open')
 
-    def test_numa_cpu_map_positive(self, mock_open):
+    def test_pmd_load_positive(self, mock_open):
         #       mock_open.side_effect = [
         #           mock.mock_open(read_data=_BASIC_CPU_INFO).return_value
      #       ]
