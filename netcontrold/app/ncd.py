@@ -550,13 +550,9 @@ def ncd_main(argv):
                     data = util.exec_host_command(cmd)
                     nlog.info(data)
 
-            # dry-run only if atleast one pmd over loaded.
-            # or, atleast in mid of dry-runs.
-            if rctx.rebal_mode:
-                if (dataif.pmd_need_rebalance(pmd_map) or rebal_i):
-                    # dry run on collected stats
-                    pmd_map = rebalance_dryrun(pmd_map)
-                    rebal_i += 1
+            # dry-run pmd rebalance.
+            if rctx.rebal_mode and rebalance_dryrun(pmd_map):
+                rebal_i += 1
 
             # collect samples of pmd and rxq stats.
             collect_data(config.ncd_samples_max, ncd_sample_interval)

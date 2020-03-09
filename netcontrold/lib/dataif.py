@@ -1015,10 +1015,15 @@ def rebalance_dryrun_iq(pmd_map):
     """
 
     nlog = Context.nlog
+    n_rxq_rebalanced = 0
 
     if len(pmd_map) <= 1:
         nlog.debug("not enough pmds to rebalance ..")
-        return pmd_map
+        return n_rxq_rebalanced
+
+    if not pmd_need_rebalance(pmd_map):
+        nlog.debug("no pmd needs rebalance ..")
+        return n_rxq_rebalanced
 
     # Calculate current load on every pmd.
     update_pmd_load(pmd_map)
@@ -1091,6 +1096,7 @@ def rebalance_dryrun_iq(pmd_map):
             nlog.info("moving rxq %d (port %s) from pmd %d into idle pmd %d .."
                       % (rxq.id, port.name, pmd.id, ipmd.id))
             irxq = iport.add_rxq(rxq.id)
+            n_rxq_rebalanced += 1
             assert(iport.numa_id == port.numa_id)
 
             # Copy cpu cycles of this rxq into its clone in
@@ -1129,7 +1135,7 @@ def rebalance_dryrun_iq(pmd_map):
                 ipmd_load_list.remove(ipmd)
                 ipmd = None
 
-    return pmd_map
+    return n_rxq_rebalanced
 
 
 def rebalance_dryrun_rr(pmd_map):
@@ -1150,10 +1156,15 @@ def rebalance_dryrun_rr(pmd_map):
     """
 
     nlog = Context.nlog
+    n_rxq_rebalanced = 0
 
     if len(pmd_map) <= 1:
         nlog.debug("not enough pmds to rebalance ..")
-        return pmd_map
+        return n_rxq_rebalanced
+
+    if not pmd_need_rebalance(pmd_map):
+        nlog.debug("no pmd needs rebalance ..")
+        return n_rxq_rebalanced
 
     # Calculate current load on every pmd.
     update_pmd_load(pmd_map)
@@ -1213,6 +1224,7 @@ def rebalance_dryrun_rr(pmd_map):
         if pmd.id == rpmd.id:
             nlog.info("no change needed for rxq %d (port %s) in pmd %d"
                       % (rxq.id, port.name, pmd.id))
+            n_rxq_rebalanced += 1
             continue
 
         # move this rxq into the rebalancing pmd.
@@ -1220,6 +1232,7 @@ def rebalance_dryrun_rr(pmd_map):
         nlog.info("moving rxq %d (port %s) from pmd %d into pmd %d .."
                   % (rxq.id, port.name, pmd.id, rpmd.id))
         rrxq = rport.add_rxq(rxq.id)
+        n_rxq_rebalanced += 1
         assert(rport.numa_id == port.numa_id)
 
         # Copy cpu cycles of this rxq into its clone in
@@ -1239,7 +1252,7 @@ def rebalance_dryrun_rr(pmd_map):
         oport.rxq_rebalanced[rxq.id] = rpmd.id
         rrxq.pmd = opmd
 
-    return pmd_map
+    return n_rxq_rebalanced
 
 
 def port_drop_ppm(port):
