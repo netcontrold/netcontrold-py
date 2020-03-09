@@ -39,12 +39,14 @@ class Memoize:
     Class to cache function returns.
     """
 
+    forgot = False
+
     def __init__(self, fn):
         self._fn = fn
         self._cache = dict()
 
     def __call__(self, *args):
-        if args not in self._cache:
+        if (type(self).forgot) or (args not in self._cache):
             self._cache[args] = self._fn(*args)
 
         return self._cache[args]
@@ -64,8 +66,8 @@ def cpuinfo():
         (param, val) = regex.match(line).groups()
 
         if ((param == 'processor' and val == '') or
-           (param == 'core id' and val == '') or
-           (param == 'physical id' and val == '')):
+            (param == 'core id' and val == '') or
+                (param == 'physical id' and val == '')):
             raise ValueError("Value %s cannot be null" % (param))
 
         if param == 'processor':
