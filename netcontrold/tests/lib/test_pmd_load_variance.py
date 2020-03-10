@@ -47,6 +47,7 @@ pmd thread numa_id 0 core_id 2:
 """
 
 
+
 class TestUtil_pmd_load_variance(TestCase):
 
     pmd_map = dict()
