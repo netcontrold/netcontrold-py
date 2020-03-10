@@ -14,6 +14,7 @@
 #  limitations under the License.
 #
 
+import copy
 from unittest import mock
 from unittest import TestCase
 
@@ -21,7 +22,7 @@ from netcontrold.app import ncd
 from netcontrold.lib import dataif
 from netcontrold.lib import config
 
-_BASIC_CPU_INFO = """
+_BASIC_DATA = """
 pmd thread numa_id 0 core_id 22:
     emc hits:17461158
     megaflow hits:0
@@ -48,21 +49,45 @@ pmd thread numa_id 0 core_id 2:
 
 class TestUtil_pmd_load_variance(TestCase):
 
+    pmd_map = dict()
+    core_id = 0
+    
+    # setup test environment
+    def setUp(self):
+        # turn off limited info shown in assert failure for pmd object.
+        self.maxDiff = None
+
+        # a noop handler for debug info log.
+        class NlogNoop(object):
+
+            def debug(self, *args):
+                None
+
+        dataif.Context.nlog = NlogNoop()
+
+        # create one pmd object.
+        self.pmd = dataif.Dataif_Pmd(self.core_id)
+
+        # let it be in numa 0.
+        self.pmd.numa_id = 0
+
+        # add some cpu consumption for this pmd.
+        for i in range(0, config.ncd_samples_max):
+            self.pmd.idle_cpu_cyc[i] = (1000 + (100 * i))
+            self.pmd.proc_cpu_cyc[i] = (5000 + (500 * i))
+            self.pmd.rx_cyc[i] = (10000 + (100 * i))
+
+        #print(self.pmd)
+        self.pmd_map[self.core_id] = self.pmd
+        return
+
     @mock.patch('netcontrold.lib.dataif.open')
-    def setUp(self, mock_open):
-        mock_open.side_effect = [
-            mock.mock_open(read_data=_BASIC_CPU_INFO).return_value
-        ]
-        self.pmd_map = dict()
-        self.pmd_map = dataif.get_pmd_stats({})
-
-
-#   @mock.patch('netcontrold.app.ncd.open')
-
     def test_pmd_load_positive(self, mock_open):
-        #       mock_open.side_effect = [
-        #           mock.mock_open(read_data=_BASIC_CPU_INFO).return_value
-     #       ]
+        mock_open.side_effect = [
+            mock.mock_open(read_data=_BASIC_DATA).return_value
+        ]
+        pmd_load=dataif.pmd_load(self.pmd)
+        dataif.update_pmd_load(self.pmd_map)
         out = dataif.pmd_load_variance(self.pmd_map)
-        expected = 65  # this is a random value just to check
+        expected = 0 
         self.assertEqual(out, expected)
