@@ -618,6 +618,8 @@ def pmd_load_variance(pmd_map):
     pmd_map : dict
         mapping of pmd id and its Dataif_Pmd object.
     """
+    update_pmd_load(pmd_map)
+
     pmd_load_list = list(map(lambda o: o.pmd_load, pmd_map.values()))
     return util.variance(pmd_load_list)
 
