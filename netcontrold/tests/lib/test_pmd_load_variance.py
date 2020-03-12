@@ -94,6 +94,7 @@ class Test_pmd_load_variance_OnePmd(TestCase):
         for i in range(0, config.ncd_samples_max):
             fx_rxq.cpu_cyc[i] = (1000 + (100 * i))
         
+        dataif.update_pmd_load(self.pmd_map)
         n_reb_rxq = dataif.pmd_load_variance(self.pmd_map)
 
         self.assertEqual(n_reb_rxq, 0)
