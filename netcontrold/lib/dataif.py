@@ -497,7 +497,7 @@ class Dataif_Pmd(object):
         # check if a port of this name already exists.
         port = self.find_port_by_name(name)
         if port:
-            return port
+            raise ObjConsistencyExc("port %s already exists" % name)
 
         # create new port and add it in port_map.
         port_cls = Context.port_to_cls[name]
