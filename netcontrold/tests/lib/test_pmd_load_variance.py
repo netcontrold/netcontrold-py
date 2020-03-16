@@ -13,9 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-import copy
 from unittest import TestCase
-from unittest import mock
 from netcontrold.lib import dataif
 from netcontrold.lib import config
 
@@ -39,7 +37,6 @@ physical id     : 0
 
 
 class Test_pmd_load_variance_OnePmd(TestCase):
-
 
     pmd_map = dict()
     core_id = 0
@@ -72,7 +69,6 @@ class Test_pmd_load_variance_OnePmd(TestCase):
         self.pmd_map[self.core_id] = fx_pmd
         return
 
-   
     def test_one_rxq(self):
         # retrieve pmd object.
         pmd = self.pmd_map[self.core_id]
@@ -93,11 +89,10 @@ class Test_pmd_load_variance_OnePmd(TestCase):
         # add some cpu consumption for this rxq.
         for i in range(0, config.ncd_samples_max):
             fx_rxq.cpu_cyc[i] = (1000 + (100 * i))
-        
+
         dataif.update_pmd_load(self.pmd_map)
         variance_value = dataif.pmd_load_variance(self.pmd_map)
 
-        
         self.assertEqual(variance_value, 0)
 
         # del port object from pmd.

@@ -16,7 +16,7 @@
 
 from unittest import TestCase
 from netcontrold.lib import dataif
-from netcontrold.lib.error import NcdException, ObjConsistencyExc
+from netcontrold.lib.error import ObjConsistencyExc
 
 
 class TestDataif_add_rxq(TestCase):
