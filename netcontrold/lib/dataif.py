@@ -184,7 +184,7 @@ class Port(object):
         # check if this rxq is already available.
         rxq = self.find_rxq_by_id(_id)
         if rxq:
-            return rxq
+            raise ObjConsistencyExc("rxq %d already exists" % _id)
 
         # create new rxq and add it in our rxq_map.
         rxq = Dataif_Rxq(_id)
