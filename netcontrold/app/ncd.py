@@ -249,11 +249,42 @@ def collect_data(n_samples, s_sampling):
     rctx = RebalContext
 
     # collect samples of pmd and rxq stats.
-    for i in range(0, n_samples):
-        dataif.get_port_stats()
-        dataif.get_interface_stats()
-        dataif.get_pmd_stats(ctx.pmd_map)
-        dataif.get_pmd_rxqs(ctx.pmd_map)
+    idx_gen = (o for o in range(0, n_samples))
+    while True:
+        try:
+            next(idx_gen)
+        except StopIteration:
+            break
+
+        try:
+            dataif.get_port_stats()
+            dataif.get_interface_stats()
+            dataif.get_pmd_stats(ctx.pmd_map)
+            dataif.get_pmd_rxqs(ctx.pmd_map)
+        except (error.OsCommandExc,
+                error.ObjConsistencyExc,
+                error.ObjParseExc) as e:
+            if isinstance(e, error.OsCommandExc):
+                nlog.warn("unable to collect data: %s" % e)
+            elif isinstance(e, error.ObjConsistencyExc):
+                nlog.warn("inconsistency in collected data: %s" % e)
+            else:
+                nlog.warn("unable to parse collected data: %s" % e)
+
+            # report error event
+            now = datetime.now()
+            now_ts = now.strftime("%Y-%m-%d %H:%M:%S")
+            ctx.events.append(("switch", "error", now_ts))
+
+            # reset collected data
+            ctx.pmd_map.clear()
+            ctx.port_to_cls.clear()
+            ctx.port_to_id.clear()
+
+            # restart iterations
+            idx_gen.close()
+            idx_gen = (o for o in range(0, n_samples))
+
         time.sleep(s_sampling)
 
     now = datetime.now()
