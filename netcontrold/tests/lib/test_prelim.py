@@ -318,10 +318,10 @@ class TestDataif_count_rxq(TestCase):
     #   whether count is correct.
     def test_pmd_count_rxq_3(self):
         # add rxq3 to port1 object
-        rxq3 = self.port1.add_rxq(3)
+        _ = self.port1.add_rxq(3)
 
         # add rxq2 to port2 object
-        rxq2 = self.port2.add_rxq(2)
+        _ = self.port2.add_rxq(2)
 
         self.assertEqual(self.pmd1.count_rxq(), 5)
 
