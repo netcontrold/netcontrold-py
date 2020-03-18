@@ -613,7 +613,7 @@ def ncd_main(argv):
                     nlog.info(data)
 
             # dry-run pmd rebalance.
-            if rctx.rebal_mode and rebalance_dryrun(pmd_map):
+            if rctx.rebal_mode and pmd_map and rebalance_dryrun(pmd_map):
                 rebal_i += 1
 
             # collect samples of pmd and rxq stats.
