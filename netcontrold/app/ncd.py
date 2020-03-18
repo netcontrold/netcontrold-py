@@ -568,6 +568,17 @@ def ncd_main(argv):
             else:
                 ncd_samples_max = config.ncd_samples_max
 
+            # samples before dry-run.
+            collect_data(ncd_samples_max, ncd_sample_interval)
+            cur_var = dataif.pmd_load_variance(pmd_map)
+
+            nlog.info("current pmd load:")
+            for pmd_id in sorted(pmd_map.keys()):
+                pmd = pmd_map[pmd_id]
+                nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
+
+            nlog.info("current pmd load variance: %d" % cur_var)
+
             # do not trace if rebalance dry-run in progress.
             if tctx.trace_mode and not rebal_i:
                 pmd_cb_list = []
@@ -612,20 +623,14 @@ def ncd_main(argv):
                     data = util.exec_host_command(cmd)
                     nlog.info(data)
 
-            # dry-run pmd rebalance.
-            if rctx.rebal_mode and pmd_map and rebalance_dryrun(pmd_map):
-                rebal_i += 1
-
-            # collect samples of pmd and rxq stats.
-            collect_data(ncd_samples_max, ncd_sample_interval)
-
             if not rctx.rebal_mode:
                 continue
 
-            prev_var = cur_var
-            cur_var = dataif.pmd_load_variance(pmd_map)
+            # dry-run pmd rebalance.
+            if pmd_map and rebalance_dryrun(pmd_map):
+                rebal_i += 1
 
-            # if no dry-run, go back to collect data again.
+            # restart sampling when no dry-run performed.
             if not rebal_i:
                 nlog.info("no dryrun done performed. current pmd load:")
                 for pmd_id in sorted(pmd_map.keys()):
@@ -643,6 +648,10 @@ def ncd_main(argv):
 
             else:
                 # compare previous and current state of pmds.
+                collect_data(ncd_samples_max, ncd_sample_interval)
+                prev_var = cur_var
+                cur_var = dataif.pmd_load_variance(pmd_map)
+
                 nlog.info("pmd load variance: previous %d, in dry run(%d) %d" %
                           (prev_var, rebal_i, cur_var))
 
@@ -699,18 +708,9 @@ def ncd_main(argv):
                 pmd_map.clear()
                 ctx.port_to_cls.clear()
                 ctx.port_to_id.clear()
-
-                collect_data(ncd_samples_max, ncd_sample_interval)
-
-                cur_var = dataif.pmd_load_variance(pmd_map)
                 rebal_i = 0
 
-                nlog.info("dry-run reset. current pmd load:")
-                for pmd_id in sorted(pmd_map.keys()):
-                    pmd = pmd_map[pmd_id]
-                    nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
-
-                nlog.info("current pmd load variance: %d" % cur_var)
+                nlog.info("dry-run reset.")
 
         except error.NcdShutdownExc:
             nlog.info("Exiting NCD ..")
