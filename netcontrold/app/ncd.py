@@ -535,29 +535,8 @@ def ncd_main(argv):
         nlog.info("failed to start ctld thread ..")
         sys.exit(1)
 
-    collect_data(config.ncd_samples_max, ncd_sample_interval)
-
-    if ncd_rebal:
-        if len(pmd_map) < 2:
-            nlog.info("required at least two pmds to check rebalance..")
-            sys.exit(1)
-
     prev_var = 0
-    cur_var = dataif.pmd_load_variance(pmd_map)
-    nlog.info("initial pmd load variance: %d" % cur_var)
-
-    nlog.info("initial pmd load:")
-    for pmd_id in sorted(pmd_map.keys()):
-        pmd = pmd_map[pmd_id]
-        nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
-
-    nlog.info("initial port drops:")
-    for pname in sorted(ctx.port_to_cls.keys()):
-        port = ctx.port_to_cls[pname]
-        drop = dataif.port_drop_ppm(port)
-        nlog.info("port %s drop_rx(ppm) %d drop_tx(ppm) %d"
-                  " tx_retry %d" %
-                  (port.name, drop[0], drop[1], dataif.port_tx_retry(port)))
+    cur_var = 0
 
     # begin rebalance dry run
     while (1):
