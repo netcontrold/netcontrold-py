@@ -146,6 +146,10 @@ class Thread(threading.Thread):
         self.ncd_shutdown = shuteventobj
 
 
+def Thread_status():
+    return threading.active_count()
+
+
 class Service:
     """
     Class to represent Service instance.
