@@ -634,9 +634,10 @@ def ncd_main(argv):
                 nlog.info("current pmd load variance: %d" % cur_var)
 
                 # reset collected data
-                pmd_map.clear()
-                ctx.port_to_cls.clear()
-                ctx.port_to_id.clear()
+                if not rctx.rebal_quick:
+                    pmd_map.clear()
+                    ctx.port_to_cls.clear()
+                    ctx.port_to_id.clear()
 
                 continue
 
