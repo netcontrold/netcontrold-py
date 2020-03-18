@@ -184,7 +184,8 @@ class Port(object):
         # check if this rxq is already available.
         rxq = self.find_rxq_by_id(_id)
         if rxq:
-            raise ObjConsistencyExc("rxq %d already exists" % _id)
+            raise ObjConsistencyExc(
+                "rxq %d already exists in %s" % (_id, self.name))
 
         # create new rxq and add it in our rxq_map.
         rxq = Dataif_Rxq(_id)
@@ -497,7 +498,8 @@ class Dataif_Pmd(object):
         # check if a port of this name already exists.
         port = self.find_port_by_name(name)
         if port:
-            raise ObjConsistencyExc("port %s already exists" % name)
+            raise ObjConsistencyExc(
+                "port %s already exists in pmd %d" % (name, self.id))
 
         # create new port and add it in port_map.
         port_cls = Context.port_to_cls[name]
