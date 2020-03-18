@@ -537,16 +537,11 @@ def ncd_main(argv):
 
     prev_var = 0
     cur_var = 0
+    ncd_samples_max = config.ncd_samples_max
 
     # begin rebalance dry run
     while (1):
         try:
-            # for quick rebalance action, one sample is sufficient
-            if rctx.rebal_quick:
-                ncd_samples_max = 1
-            else:
-                ncd_samples_max = config.ncd_samples_max
-
             # samples before dry-run.
             collect_data(ncd_samples_max, ncd_sample_interval)
             cur_var = dataif.pmd_load_variance(pmd_map)
@@ -604,6 +599,26 @@ def ncd_main(argv):
 
             if not rctx.rebal_mode:
                 continue
+
+            # At the minimum for deriving current load on pmds, all of
+            # the sampling counters (of size config.ncd_samples_max) have
+            # to be filled "every time" before other evaluations done.
+            #
+            # However, for quick rebalance, we fill all the counters
+            # once, and then keep rolling with one counter across old
+            # stats so that, we reduce time to sample before kicking off
+            # rebalance (from sampling config.ncd_samples_max counters
+            # to only one.
+            #
+            # As ovs internally refers all its 6 sample counters for any
+            # stats we query, it is absolutely fine we roll with one
+            # new sample and retain old n-1 samples to check for current
+            # state of pmd and rxqs.
+            #
+            if rctx.rebal_quick:
+                ncd_samples_max = 1
+            else:
+                ncd_samples_max = config.ncd_samples_max
 
             # dry-run pmd rebalance.
             if pmd_map and rebalance_dryrun(pmd_map):
