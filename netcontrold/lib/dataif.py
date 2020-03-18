@@ -845,7 +845,7 @@ def get_pmd_rxqs(pmd_map):
             else:
                 # port not in rebalancing state, so update rxq for its
                 # cpu cycles consumed by it.
-                rxq = port.add_rxq(qid)
+                rxq = (port.find_rxq_by_id(qid) or port.add_rxq(qid))
                 rxq.pmd = pmd
                 rxq.port = port
                 cur_idx = pmd.cyc_idx
