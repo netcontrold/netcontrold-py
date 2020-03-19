@@ -539,12 +539,14 @@ def ncd_main(argv):
     prev_var = 0
     cur_var = 0
     ncd_samples_max = config.ncd_samples_max
+    min_sample_i = 0
 
     # begin rebalance dry run
     while (1):
         try:
             # samples before dry-run.
             collect_data(ncd_samples_max, ncd_sample_interval)
+            min_sample_i += ncd_samples_max
             cur_var = dataif.pmd_load_variance(pmd_map)
 
             nlog.info("current pmd load:")
@@ -616,8 +618,9 @@ def ncd_main(argv):
             # new sample and retain old n-1 samples to check for current
             # state of pmd and rxqs.
             #
-            if rctx.rebal_quick:
+            if rctx.rebal_quick and (min_sample_i >= config.ncd_samples_max):
                 ncd_samples_max = 1
+                min_sample_i = (config.ncd_samples_max - 1)
             else:
                 ncd_samples_max = config.ncd_samples_max
 
@@ -639,6 +642,7 @@ def ncd_main(argv):
                     pmd_map.clear()
                     ctx.port_to_cls.clear()
                     ctx.port_to_id.clear()
+                    min_sample_i = 0
 
                 continue
 
@@ -705,6 +709,7 @@ def ncd_main(argv):
                 ctx.port_to_cls.clear()
                 ctx.port_to_id.clear()
                 rebal_i = 0
+                min_sample_i = 0
 
                 nlog.info("dry-run reset.")
 
