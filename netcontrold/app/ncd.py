@@ -548,6 +548,9 @@ def ncd_main(argv):
             collect_data(ncd_samples_max, ncd_sample_interval)
             min_sample_i += ncd_samples_max
             cur_var = dataif.pmd_load_variance(pmd_map)
+            cur_pmd_n = len(pmd_map)
+            cur_port_n = len(ctx.port_to_cls)
+            cur_rxq_n = sum(map(lambda o: o.count_rxq(), pmd_map.values()))
 
             nlog.info("current pmd load:")
             for pmd_id in sorted(pmd_map.keys()):
@@ -637,8 +640,15 @@ def ncd_main(argv):
 
                 nlog.info("current pmd load variance: %d" % cur_var)
 
-                # reset collected data
-                if not rctx.rebal_quick:
+                # reset collected data if needed.
+                prev_pmd_n = cur_pmd_n
+                prev_port_n = cur_port_n
+                prev_rxq_n = cur_rxq_n
+                cur_pmd_n = len(pmd_map)
+                cur_port_n = len(ctx.port_to_cls)
+                cur_rxq_n = sum(map(lambda o: o.count_rxq(), pmd_map.values()))
+                if ((prev_pmd_n, prev_port_n, prev_rxq_n) !=
+                   (cur_pmd_n, cur_port_n, cur_rxq_n)):
                     pmd_map.clear()
                     ctx.port_to_cls.clear()
                     ctx.port_to_id.clear()
@@ -650,7 +660,23 @@ def ncd_main(argv):
                 # compare previous and current state of pmds.
                 collect_data(ncd_samples_max, ncd_sample_interval)
                 prev_var = cur_var
+                prev_pmd_n = cur_pmd_n
+                prev_port_n = cur_port_n
+                prev_rxq_n = cur_rxq_n
                 cur_var = dataif.pmd_load_variance(pmd_map)
+                cur_pmd_n = len(pmd_map)
+                cur_port_n = len(ctx.port_to_cls)
+                cur_rxq_n = sum(map(lambda o: o.count_rxq(), pmd_map.values()))
+
+                # skip rebalance action if switch state is changed.
+                if ((prev_pmd_n, prev_port_n, prev_rxq_n) !=
+                   (cur_pmd_n, cur_port_n, cur_rxq_n)):
+                    pmd_map.clear()
+                    ctx.port_to_cls.clear()
+                    ctx.port_to_id.clear()
+                    rebal_i = 0
+                    min_sample_i = 0
+                    continue
 
                 nlog.info("pmd load variance: previous %d, in dry run(%d) %d" %
                           (prev_var, rebal_i, cur_var))
