@@ -1023,12 +1023,12 @@ def rebalance_dryrun_iq(pmd_map):
         nlog.debug("not enough pmds to rebalance ..")
         return n_rxq_rebalanced
 
+    # Calculate current load on every pmd.
+    update_pmd_load(pmd_map)
+
     if not pmd_need_rebalance(pmd_map):
         nlog.debug("no pmd needs rebalance ..")
         return n_rxq_rebalanced
-
-    # Calculate current load on every pmd.
-    update_pmd_load(pmd_map)
 
     # Sort pmds in pmd_map based on the rxq load, in descending order.
     # Pick the pmd which is more loaded from one end of the list.
@@ -1164,12 +1164,12 @@ def rebalance_dryrun_rr(pmd_map):
         nlog.debug("not enough pmds to rebalance ..")
         return n_rxq_rebalanced
 
+    # Calculate current load on every pmd.
+    update_pmd_load(pmd_map)
+
     if not pmd_need_rebalance(pmd_map):
         nlog.debug("no pmd needs rebalance ..")
         return n_rxq_rebalanced
-
-    # Calculate current load on every pmd.
-    update_pmd_load(pmd_map)
 
     # Sort pmds in pmd_map based on the id (i.e constant order)
     rr_cpus = util.rr_cpu_in_numa()

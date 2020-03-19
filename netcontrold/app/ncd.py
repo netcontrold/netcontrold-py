@@ -535,38 +535,23 @@ def ncd_main(argv):
         nlog.info("failed to start ctld thread ..")
         sys.exit(1)
 
-    collect_data(config.ncd_samples_max, ncd_sample_interval)
-
-    if ncd_rebal:
-        if len(pmd_map) < 2:
-            nlog.info("required at least two pmds to check rebalance..")
-            sys.exit(1)
-
     prev_var = 0
-    cur_var = dataif.pmd_load_variance(pmd_map)
-    nlog.info("initial pmd load variance: %d" % cur_var)
-
-    nlog.info("initial pmd load:")
-    for pmd_id in sorted(pmd_map.keys()):
-        pmd = pmd_map[pmd_id]
-        nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
-
-    nlog.info("initial port drops:")
-    for pname in sorted(ctx.port_to_cls.keys()):
-        port = ctx.port_to_cls[pname]
-        drop = dataif.port_drop_ppm(port)
-        nlog.info("port %s drop_rx(ppm) %d drop_tx(ppm) %d"
-                  " tx_retry %d" %
-                  (port.name, drop[0], drop[1], dataif.port_tx_retry(port)))
+    cur_var = 0
+    ncd_samples_max = config.ncd_samples_max
 
     # begin rebalance dry run
     while (1):
         try:
-            # for quick rebalance action, one sample is sufficient
-            if rctx.rebal_quick:
-                ncd_samples_max = 1
-            else:
-                ncd_samples_max = config.ncd_samples_max
+            # samples before dry-run.
+            collect_data(ncd_samples_max, ncd_sample_interval)
+            cur_var = dataif.pmd_load_variance(pmd_map)
+
+            nlog.info("current pmd load:")
+            for pmd_id in sorted(pmd_map.keys()):
+                pmd = pmd_map[pmd_id]
+                nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
+
+            nlog.info("current pmd load variance: %d" % cur_var)
 
             # do not trace if rebalance dry-run in progress.
             if tctx.trace_mode and not rebal_i:
@@ -612,20 +597,34 @@ def ncd_main(argv):
                     data = util.exec_host_command(cmd)
                     nlog.info(data)
 
-            # dry-run pmd rebalance.
-            if rctx.rebal_mode and pmd_map and rebalance_dryrun(pmd_map):
-                rebal_i += 1
-
-            # collect samples of pmd and rxq stats.
-            collect_data(ncd_samples_max, ncd_sample_interval)
-
             if not rctx.rebal_mode:
                 continue
 
-            prev_var = cur_var
-            cur_var = dataif.pmd_load_variance(pmd_map)
+            # At the minimum for deriving current load on pmds, all of
+            # the sampling counters (of size config.ncd_samples_max) have
+            # to be filled "every time" before other evaluations done.
+            #
+            # However, for quick rebalance, we fill all the counters
+            # once, and then keep rolling with one counter across old
+            # stats so that, we reduce time to sample before kicking off
+            # rebalance (from sampling config.ncd_samples_max counters
+            # to only one.
+            #
+            # As ovs internally refers all its 6 sample counters for any
+            # stats we query, it is absolutely fine we roll with one
+            # new sample and retain old n-1 samples to check for current
+            # state of pmd and rxqs.
+            #
+            if rctx.rebal_quick:
+                ncd_samples_max = 1
+            else:
+                ncd_samples_max = config.ncd_samples_max
 
-            # if no dry-run, go back to collect data again.
+            # dry-run pmd rebalance.
+            if pmd_map and rebalance_dryrun(pmd_map):
+                rebal_i += 1
+
+            # restart sampling when no dry-run performed.
             if not rebal_i:
                 nlog.info("no dryrun done performed. current pmd load:")
                 for pmd_id in sorted(pmd_map.keys()):
@@ -635,14 +634,19 @@ def ncd_main(argv):
                 nlog.info("current pmd load variance: %d" % cur_var)
 
                 # reset collected data
-                pmd_map.clear()
-                ctx.port_to_cls.clear()
-                ctx.port_to_id.clear()
+                if not rctx.rebal_quick:
+                    pmd_map.clear()
+                    ctx.port_to_cls.clear()
+                    ctx.port_to_id.clear()
 
                 continue
 
             else:
                 # compare previous and current state of pmds.
+                collect_data(ncd_samples_max, ncd_sample_interval)
+                prev_var = cur_var
+                cur_var = dataif.pmd_load_variance(pmd_map)
+
                 nlog.info("pmd load variance: previous %d, in dry run(%d) %d" %
                           (prev_var, rebal_i, cur_var))
 
@@ -699,18 +703,9 @@ def ncd_main(argv):
                 pmd_map.clear()
                 ctx.port_to_cls.clear()
                 ctx.port_to_id.clear()
-
-                collect_data(ncd_samples_max, ncd_sample_interval)
-
-                cur_var = dataif.pmd_load_variance(pmd_map)
                 rebal_i = 0
 
-                nlog.info("dry-run reset. current pmd load:")
-                for pmd_id in sorted(pmd_map.keys()):
-                    pmd = pmd_map[pmd_id]
-                    nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
-
-                nlog.info("current pmd load variance: %d" % cur_var)
+                nlog.info("dry-run reset.")
 
         except error.NcdShutdownExc:
             nlog.info("Exiting NCD ..")
