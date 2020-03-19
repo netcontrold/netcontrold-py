@@ -264,17 +264,18 @@ def collect_data(n_samples, s_sampling):
         except (error.OsCommandExc,
                 error.ObjConsistencyExc,
                 error.ObjParseExc) as e:
-            if isinstance(e, error.OsCommandExc):
-                nlog.warn("unable to collect data: %s" % e)
-            elif isinstance(e, error.ObjConsistencyExc):
-                nlog.warn("inconsistency in collected data: %s" % e)
-            else:
-                nlog.warn("unable to parse collected data: %s" % e)
-
             # report error event
             now = datetime.now()
             now_ts = now.strftime("%Y-%m-%d %H:%M:%S")
-            ctx.events.append(("switch", "error", now_ts))
+            if isinstance(e, error.OsCommandExc):
+                nlog.warn("unable to collect data: %s" % e)
+                ctx.events.append(("switch", "error", now_ts))
+            elif isinstance(e, error.ObjConsistencyExc):
+                nlog.warn("inconsistency in collected data: %s" % e)
+                ctx.events.append(("ncd", "inconsistency", now_ts))
+            else:
+                nlog.warn("retry data collection due to: %s" % e)
+                ctx.events.append(("ncd", "retry_parse", now_ts))
 
             # reset collected data
             ctx.pmd_map.clear()
