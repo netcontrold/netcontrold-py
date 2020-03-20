@@ -313,7 +313,7 @@ def collect_data(n_samples, s_sampling):
                 idx_gen.close()
                 idx_max = config.ncd_samples_max
                 idx_gen = (o for o in range(0, idx_max))
-                time.sleep(1)
+                time.sleep(s_sampling)
                 continue
 
             else:
