@@ -633,12 +633,7 @@ def ncd_main(argv):
 
             # restart sampling when no dry-run performed.
             if not rebal_i:
-                nlog.info("no dryrun done performed. current pmd load:")
-                for pmd_id in sorted(pmd_map.keys()):
-                    pmd = pmd_map[pmd_id]
-                    nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
-
-                nlog.info("current pmd load variance: %d" % cur_var)
+                nlog.info("no dryrun performed.")
 
                 # reset collected data if needed.
                 prev_pmd_n = cur_pmd_n
