@@ -548,6 +548,7 @@ def ncd_main(argv):
             ncd_rebal_interval / ncd_sample_interval, config.ncd_samples_max)
 
         rctx.rebal_mode = True
+        rctx.rebal_quick = True
 
     config.ncd_samples_max = int(config.ncd_samples_max)
 
