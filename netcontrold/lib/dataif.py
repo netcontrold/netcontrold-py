@@ -1094,9 +1094,9 @@ def rebalance_dryrun_iq(pmd_map):
                 raise ObjConsistencyExc("rxq found empty ..")
 
             # move this rxq into the rebalancing pmd.
-            iport = ipmd.add_port(port.name, port.id, port.numa_id)
             nlog.info("moving rxq %d (port %s) from pmd %d into idle pmd %d .."
                       % (rxq.id, port.name, pmd.id, ipmd.id))
+            iport = ipmd.add_port(port.name, port.id, port.numa_id)
             irxq = iport.add_rxq(rxq.id)
             n_rxq_rebalanced += 1
             assert(iport.numa_id == port.numa_id)
@@ -1230,9 +1230,9 @@ def rebalance_dryrun_rr(pmd_map):
             continue
 
         # move this rxq into the rebalancing pmd.
-        rport = rpmd.add_port(port.name, port.id, port.numa_id)
         nlog.info("moving rxq %d (port %s) from pmd %d into pmd %d .."
                   % (rxq.id, port.name, pmd.id, rpmd.id))
+        rport = rpmd.add_port(port.name, port.id, port.numa_id)
         rrxq = rport.add_rxq(rxq.id)
         n_rxq_rebalanced += 1
         assert(rport.numa_id == port.numa_id)
