@@ -26,7 +26,7 @@ from netcontrold.lib import util
 
 from netcontrold.lib import config
 from netcontrold.lib.error import ObjCreateExc, ObjParseExc,\
-    ObjConsistencyExc, OsCommandExc
+    ObjConsistencyExc, ObjModelExc, OsCommandExc
 
 
 class Context():
@@ -664,6 +664,10 @@ def get_pmd_stats(pmd_map):
     ------
     OsCommandExc
         if the given OS command did not succeed for some reason.
+    ObjConsistencyExc
+        if state of pmds in ncd differ.
+    ObjModleExc
+        if state of pmds in switch differ.
     """
 
     nlog = Context.nlog
@@ -673,6 +677,9 @@ def get_pmd_stats(pmd_map):
     data = util.exec_host_command(cmd)
     if not data:
         raise OsCommandExc("unable to collect data")
+
+    # current state of pmds
+    cur_pmd_l = sorted(pmd_map.keys())
 
     # sname and sval stores parsed string's key and value.
     sname, sval = None, None
@@ -730,6 +737,13 @@ def get_pmd_stats(pmd_map):
             elif sname == "processing cycles":
                 pmd.proc_cpu_cyc[pmd.cyc_idx] = int(sval[0])
 
+    # new state of pmds.
+    new_pmd_l = sorted(pmd_map.keys())
+
+    # skip modelling this object if states differ.
+    if len(cur_pmd_l) > 0 and cur_pmd_l != new_pmd_l:
+        raise ObjModelExc("pmds count differ")
+
     return pmd_map
 
 
@@ -741,13 +755,17 @@ def get_pmd_rxqs(pmd_map):
     ----------
     pmd_map : dict
         mapping of pmd id and its Dataif_Pmd object.
-    port_map : dict
-        mapping of port name and its Port object.
 
     Raises
     ------
     OsCommandExc
         if the given OS command did not succeed for some reason.
+    ObjConsistencyExc
+        if state of pmds in ncd differ.
+    ObjParseExc
+        if unable to retrieve info from switch.
+    ObjModleExc
+        if state of pmds in switch differ.
     """
 
     nlog = Context.nlog
@@ -757,6 +775,9 @@ def get_pmd_rxqs(pmd_map):
     data = util.exec_host_command(cmd)
     if not data:
         raise OsCommandExc("unable to collect data")
+
+    # current state of pmds
+    cur_pmd_l = sorted(pmd_map.keys())
 
     # sname and sval stores parsed string's key and value.
     sname, sval = None, None
@@ -792,9 +813,7 @@ def get_pmd_rxqs(pmd_map):
             except ValueError:
                 qcpu = linesre.groups()[2]
                 if (qcpu == 'NOT AVAIL'):
-                    # rxq stats not available at this time, skip this
-                    # iteration.
-                    qcpu = 0
+                    raise ObjParseExc("pmd usage unavailable for now")
                 else:
                     raise ObjParseExc("error parsing line %s" % line)
 
@@ -864,6 +883,13 @@ def get_pmd_rxqs(pmd_map):
             assert(sname == 'isolated ')
             pmd.isolated = {'true': True, 'false': False}[sval[1:]]
 
+    # new state of pmds.
+    new_pmd_l = sorted(pmd_map.keys())
+
+    # skip modelling this object if states differ.
+    if len(cur_pmd_l) > 0 and cur_pmd_l != new_pmd_l:
+        raise ObjModelExc("pmds count differ")
+
     return pmd_map
 
 
@@ -877,6 +903,8 @@ def get_port_stats():
     ------
     OsCommandExc
         if the given OS command did not succeed for some reason.
+    ObjModleExc
+        if state of ports in switch differ.
     """
 
     nlog = Context.nlog
@@ -886,6 +914,9 @@ def get_port_stats():
     data = util.exec_host_command(cmd)
     if not data:
         raise OsCommandExc("unable to collect data")
+
+    # current state of ports
+    cur_port_l = sorted(Context.port_to_cls.keys())
 
     # current port object to be used in every line under parse.
     port = None
@@ -929,6 +960,14 @@ def get_port_stats():
             port.tx_cyc[port.cyc_idx] = int(tx)
             port.tx_drop_cyc[port.cyc_idx] = int(drop)
 
+    # new state of ports.
+    new_port_l = sorted(Context.port_to_cls.keys())
+
+    # skip modelling this object if states differ.
+    if len(cur_port_l) > 0 and cur_port_l != new_port_l:
+        raise ObjModelExc("ports count differ")
+
+    # current port object to be used in every line under parse.
     return None
 
 
@@ -942,6 +981,8 @@ def get_interface_stats():
     ------
     OsCommandExc
         if the given OS command did not succeed for some reason.
+    ObjModleExc
+        if state of ports in switch differ.
     """
 
     nlog = Context.nlog
@@ -951,6 +992,9 @@ def get_interface_stats():
     data = util.exec_host_command(cmd)
     if not data:
         raise OsCommandExc("unable to collect data")
+
+    # current state of ports
+    cur_port_l = sorted(Context.port_to_cls.keys())
 
     # current port object to be used in every line under parse.
     port = None
@@ -994,6 +1038,13 @@ def get_interface_stats():
                 port.tx_retry_cyc[port.cyc_idx] = int(dval['tx_retries'])
 
             port = None
+
+    # new state of ports.
+    new_port_l = sorted(Context.port_to_cls.keys())
+
+    # skip modelling this object if states differ.
+    if len(cur_port_l) > 0 and cur_port_l != new_port_l:
+        raise ObjModelExc("ports count differ")
 
     return None
 
@@ -1094,9 +1145,9 @@ def rebalance_dryrun_iq(pmd_map):
                 raise ObjConsistencyExc("rxq found empty ..")
 
             # move this rxq into the rebalancing pmd.
-            iport = ipmd.add_port(port.name, port.id, port.numa_id)
             nlog.info("moving rxq %d (port %s) from pmd %d into idle pmd %d .."
                       % (rxq.id, port.name, pmd.id, ipmd.id))
+            iport = ipmd.add_port(port.name, port.id, port.numa_id)
             irxq = iport.add_rxq(rxq.id)
             n_rxq_rebalanced += 1
             assert(iport.numa_id == port.numa_id)
@@ -1230,9 +1281,9 @@ def rebalance_dryrun_rr(pmd_map):
             continue
 
         # move this rxq into the rebalancing pmd.
-        rport = rpmd.add_port(port.name, port.id, port.numa_id)
         nlog.info("moving rxq %d (port %s) from pmd %d into pmd %d .."
                   % (rxq.id, port.name, pmd.id, rpmd.id))
+        rport = rpmd.add_port(port.name, port.id, port.numa_id)
         rrxq = rport.add_rxq(rxq.id)
         n_rxq_rebalanced += 1
         assert(rport.numa_id == port.numa_id)

@@ -249,7 +249,8 @@ def collect_data(n_samples, s_sampling):
     rctx = RebalContext
 
     # collect samples of pmd and rxq stats.
-    idx_gen = (o for o in range(0, n_samples))
+    idx_max = n_samples
+    idx_gen = (o for o in range(0, idx_max))
     while True:
         try:
             next(idx_gen)
@@ -262,29 +263,63 @@ def collect_data(n_samples, s_sampling):
             dataif.get_pmd_stats(ctx.pmd_map)
             dataif.get_pmd_rxqs(ctx.pmd_map)
         except (error.OsCommandExc,
+                error.ObjCreateExc,
                 error.ObjConsistencyExc,
-                error.ObjParseExc) as e:
+                error.ObjParseExc,
+                error.ObjModelExc) as e:
             # report error event
             now = datetime.now()
             now_ts = now.strftime("%Y-%m-%d %H:%M:%S")
             if isinstance(e, error.OsCommandExc):
                 nlog.warn("unable to collect data: %s" % e)
                 ctx.events.append(("switch", "error", now_ts))
+                raise error.NcdShutdownExc
+
+            elif isinstance(e, error.ObjCreateExc):
+                nlog.warn("unable to create object: %s" % e)
+                ctx.events.append(("ncd", "error", now_ts))
+                raise error.NcdShutdownExc
+
             elif isinstance(e, error.ObjConsistencyExc):
                 nlog.warn("inconsistency in collected data: %s" % e)
-                ctx.events.append(("ncd", "inconsistency", now_ts))
-            else:
-                nlog.warn("retry data collection due to: %s" % e)
+                ctx.events.append(("ncd", "error", now_ts))
+                raise error.NcdShutdownExc
+
+            elif isinstance(e, error.ObjModelExc):
+                nlog.warn("switch states changed: %s" % e)
+                ctx.events.append(("ncd", "retry_model", now_ts))
+
+                # reset collected data
+                ctx.pmd_map.clear()
+                ctx.port_to_cls.clear()
+                ctx.port_to_id.clear()
+
+                # restart iterations
+                idx_gen.close()
+                idx_max = config.ncd_samples_max
+                idx_gen = (o for o in range(0, idx_max))
+                continue
+
+            elif isinstance(e, error.ObjParseExc):
+                nlog.warn("unable to parse info: %s" % e)
                 ctx.events.append(("ncd", "retry_parse", now_ts))
 
-            # reset collected data
-            ctx.pmd_map.clear()
-            ctx.port_to_cls.clear()
-            ctx.port_to_id.clear()
+                # reset collected data
+                ctx.pmd_map.clear()
+                ctx.port_to_cls.clear()
+                ctx.port_to_id.clear()
 
-            # restart iterations
-            idx_gen.close()
-            idx_gen = (o for o in range(0, n_samples))
+                # restart iterations
+                idx_gen.close()
+                idx_max = config.ncd_samples_max
+                idx_gen = (o for o in range(0, idx_max))
+                time.sleep(s_sampling)
+                continue
+
+            else:
+                nlog.error("unhandled exception: %s" % e)
+                ctx.events.append(("ncd", "exception", now_ts))
+                raise error.NcdShutdownExc
 
         time.sleep(s_sampling)
 
@@ -513,6 +548,7 @@ def ncd_main(argv):
             ncd_rebal_interval / ncd_sample_interval, config.ncd_samples_max)
 
         rctx.rebal_mode = True
+        rctx.rebal_quick = True
 
     config.ncd_samples_max = int(config.ncd_samples_max)
 
@@ -544,19 +580,15 @@ def ncd_main(argv):
     # begin rebalance dry run
     while (1):
         try:
-            # samples before dry-run.
             collect_data(ncd_samples_max, ncd_sample_interval)
             min_sample_i += ncd_samples_max
-            cur_var = dataif.pmd_load_variance(pmd_map)
-            cur_pmd_n = len(pmd_map)
-            cur_port_n = len(ctx.port_to_cls)
-            cur_rxq_n = sum(map(lambda o: o.count_rxq(), pmd_map.values()))
 
             nlog.info("current pmd load:")
             for pmd_id in sorted(pmd_map.keys()):
                 pmd = pmd_map[pmd_id]
                 nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
 
+            cur_var = dataif.pmd_load_variance(pmd_map)
             nlog.info("current pmd load variance: %d" % cur_var)
 
             # do not trace if rebalance dry-run in progress.
@@ -633,58 +665,22 @@ def ncd_main(argv):
 
             # restart sampling when no dry-run performed.
             if not rebal_i:
-                nlog.info("no dryrun done performed. current pmd load:")
-                for pmd_id in sorted(pmd_map.keys()):
-                    pmd = pmd_map[pmd_id]
-                    nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
-
-                nlog.info("current pmd load variance: %d" % cur_var)
-
-                # reset collected data if needed.
-                prev_pmd_n = cur_pmd_n
-                prev_port_n = cur_port_n
-                prev_rxq_n = cur_rxq_n
-                cur_pmd_n = len(pmd_map)
-                cur_port_n = len(ctx.port_to_cls)
-                cur_rxq_n = sum(map(lambda o: o.count_rxq(), pmd_map.values()))
-                if ((prev_pmd_n, prev_port_n, prev_rxq_n) !=
-                   (cur_pmd_n, cur_port_n, cur_rxq_n)):
-                    pmd_map.clear()
-                    ctx.port_to_cls.clear()
-                    ctx.port_to_id.clear()
-                    min_sample_i = 0
-
+                nlog.info("no dryrun performed.")
                 continue
 
             else:
                 # compare previous and current state of pmds.
-                collect_data(ncd_samples_max, ncd_sample_interval)
                 prev_var = cur_var
-                prev_pmd_n = cur_pmd_n
-                prev_port_n = cur_port_n
-                prev_rxq_n = cur_rxq_n
+                collect_data(ncd_samples_max, ncd_sample_interval)
                 cur_var = dataif.pmd_load_variance(pmd_map)
-                cur_pmd_n = len(pmd_map)
-                cur_port_n = len(ctx.port_to_cls)
-                cur_rxq_n = sum(map(lambda o: o.count_rxq(), pmd_map.values()))
-
-                # skip rebalance action if switch state is changed.
-                if ((prev_pmd_n, prev_port_n, prev_rxq_n) !=
-                   (cur_pmd_n, cur_port_n, cur_rxq_n)):
-                    pmd_map.clear()
-                    ctx.port_to_cls.clear()
-                    ctx.port_to_id.clear()
-                    rebal_i = 0
-                    min_sample_i = 0
-                    continue
-
-                nlog.info("pmd load variance: previous %d, in dry run(%d) %d" %
-                          (prev_var, rebal_i, cur_var))
 
                 nlog.info("pmd load in dry run(%d):" % rebal_i)
                 for pmd_id in sorted(pmd_map.keys()):
                     pmd = pmd_map[pmd_id]
                     nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
+
+                nlog.info("pmd load variance: previous %d, in dry run(%d) %d" %
+                          (prev_var, rebal_i, cur_var))
 
                 if (cur_var < prev_var):
                     diff = (prev_var - cur_var) * 100 / prev_var
@@ -734,6 +730,7 @@ def ncd_main(argv):
                 pmd_map.clear()
                 ctx.port_to_cls.clear()
                 ctx.port_to_id.clear()
+                ncd_samples_max = config.ncd_samples_max
                 rebal_i = 0
                 min_sample_i = 0
 

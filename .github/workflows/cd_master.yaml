@@ -11,10 +11,13 @@ jobs:
   build:
     name: Create release
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/master'
+    if: github.event.base_ref != 'refs/heads/master'
     steps:
       - name: Checkout master
-        uses: actions/checkout@master
+        uses: actions/checkout@v1
+      - name: Set vars
+        id: vars
+        run: echo ::set-output name=tag::${GITHUB_REF:10}
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -29,12 +32,6 @@ jobs:
             - Second Change
           draft: false
           prerelease: false
-
-  deploy:
-    runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/master'
-    steps:
-      - uses: actions/checkout@test
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
@@ -43,10 +40,57 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install setuptools wheel twine
-      - name: Build and publish
+      - name: Build and publish release
         env:
+          TEST_BUILD: ${{ secrets.TEST_BUILD }}
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
           python setup.py sdist bdist_wheel
-          twine upload dist/*
+          if [ "${TEST_BUILD}" == "1" ]
+          then
+            at="--repository-url https://test.pypi.org/legacy/"
+          else
+            at=""
+          fi
+          twine upload ${at} dist/*
+        continue-on-error: false
+      - name: Pull container image
+        run: |
+          docker run --name ncd --pid=host --net=host --entrypoint=/bin/bash -dit quay.io/netcontrold/netcontrold-py:latest
+      - name: Uninstall previous version of netcontrold
+        run: |
+          docker exec ncd pip3 uninstall -y netcontrold
+      - name: Install new release
+        env:
+          TEST_BUILD: ${{ secrets.TEST_BUILD }}
+          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+        shell: bash
+        run: |
+          ver_str=${RELEASE_VERSION:1}
+          ver_pypi=${ver_str/-/post}
+          if [ "${TEST_BUILD}" == "1" ]
+          then
+            from="--extra-index-url https://testpypi.python.org/pypi"
+          else
+            from=""
+          fi
+          docker exec ncd pip3 install ${from} netcontrold==${ver_pypi}
+      - name: Publish container image
+        env:
+          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+          DOCKER_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+        run: |
+          docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD} quay.io
+          docker stop ncd
+          ver_str=${RELEASE_VERSION:1}
+          docker commit ncd quay.io/netcontrold/netcontrold-py:${ver_str}
+          docker commit ncd quay.io/netcontrold/netcontrold-py:latest
+          docker push quay.io/netcontrold/netcontrold-py:${ver_str}
+          docker push quay.io/netcontrold/netcontrold-py:latest
+      - name: Remove credentials
+        run: |
+          docker logout quay.io
+        continue-on-error: true
+        if: always()

@@ -17,6 +17,7 @@ __all__ = ['LogExc',
            'ObjCreateExc',
            'ObjParseExc',
            'ObjConsistencyExc',
+           'ObjModelExc',
            'NcdShutdownExc',
            'OsCommandExc'
            ]
@@ -52,6 +53,10 @@ class ObjParseExc(NcdException):
 
 class ObjConsistencyExc(NcdException):
     '''Exception raised when there is inconsistency in Dataif object'''
+
+
+class ObjModelExc(NcdException):
+    '''Exception raised when unable add Dataif object in modelling'''
 
 
 class NcdShutdownExc(Exception):
