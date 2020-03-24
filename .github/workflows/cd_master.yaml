@@ -53,8 +53,8 @@ jobs:
           else
             at=""
           fi
-          twine upload ${at} https://test.pypi.org/legacy/ dist/*
-        continue-on-error: true
+          twine upload ${at} dist/*
+        continue-on-error: false
       - name: Pull container image
         run: |
           docker run --name ncd --pid=host --net=host --entrypoint=/bin/bash -dit quay.io/netcontrold/netcontrold-py:latest
