@@ -11,7 +11,7 @@ jobs:
   build:
     name: Create release
     runs-on: ubuntu-latest
-    if: github.event.base_ref != 'refs/heads/master'
+    if: github.event.base_ref == 'refs/heads/master'
     steps:
       - name: Checkout master
         uses: actions/checkout@v1
