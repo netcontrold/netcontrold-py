@@ -146,10 +146,6 @@ class Thread(threading.Thread):
         self.ncd_shutdown = shuteventobj
 
 
-def Thread_status():
-    return threading.activecount()
-
-
 class Service:
     """
     Class to represent Service instance.
@@ -503,8 +499,3 @@ class Service:
             sock.close()
 
         return 0
-
-
-def service_pid_check():
-    p_id = os.getpid()
-    return p_id

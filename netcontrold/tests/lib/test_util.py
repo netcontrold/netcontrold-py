@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 from unittest import mock
+import threading
+import time
 from unittest import TestCase
 
 from netcontrold.lib import util
@@ -264,33 +266,36 @@ class TestUtil_rr_cpu_in_numa(TestCase):
         self.assertEqual(out, expected)
 
 
+class DummyNcdThread(util.Thread):
+    def __init__(self, eobj):
+        util.Thread.__init__(self, eobj)
+
+    def run(self):
+        dumyVariable = 1
+        while (not self.ncd_shutdown.is_set()):
+            for x in range(0, 20):
+                time.sleep(1)
+        return
+
+
 class TestUtil_test_thread_creation(TestCase):
 
     def setUp(self):
         util.Memoize.forgot = True
-        thread = util.Thread()
 
-    def check_thread_exist(thread):
-        if threading.activeCount() > 0:
-            value1 = 'T'
-        else:
-            value1 = 'F'
+    def check_thread_exist(self):
+        stop_event = threading.Event()
+        tobj = DummyNcdThread(stop_event)
+        tobj.start()
+        tobj.stop_event.set()
+        tobj.join()
+        self.assertEqual(self.dumyVariable, 1)
 
-        count = util.Thread_status()
-        if count > 0:
-            value2 = 'T'
-        else:
-            value2 = 'F'
-
-        self.assertEqual(value1, value2)
-
-
-class TestUtil_test_searvice_creation(TestCase):
-
-    def setUp(self):
-        util.Memoize.forgot = True
-        service = util.Service()
-
-    def check_pid_exist():
-        if util.service_pid_check() > 0:
-            self.assertEqual("serive is created")
+    def check_thread_no_exist(self):
+        stop_event = threading.Event()
+        tobj = DummyNcdThread(stop_event)
+        tobj.start()
+        tobj.stop_event.set()
+        tobj.join()
+        if self.dumyVariable != 1:
+            self.assertRaises(ValueError, self.dumyVariable)
