@@ -54,7 +54,7 @@ jobs:
             at=""
           fi
           twine upload ${at} dist/*
-        continue-on-error: false
+        continue-on-error: true
       - name: Pull container image
         run: |
           docker run --name ncd --pid=host --net=host --entrypoint=/bin/bash -dit quay.io/netcontrold/netcontrold-py:latest
