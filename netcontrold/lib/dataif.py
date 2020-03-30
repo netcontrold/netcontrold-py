@@ -1263,6 +1263,7 @@ def rebalance_dryrun_rr(pmd_map):
         if not rpmd:
             nlog.debug("no rebalancing pmd on numa(%d) for port %s rxq %d.."
                        % (port.numa_id, port.name, rxq.id))
+            n_rxq_rebalanced += 1
             continue
 
         if pmd_list.index(rpmd) == (len(pmd_list) - 1):
