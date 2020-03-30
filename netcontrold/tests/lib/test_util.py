@@ -15,7 +15,8 @@
 #
 from unittest import mock
 from unittest import TestCase
-
+import threading
+import time
 from netcontrold.lib import util
 
 _BASIC_CPU_INFO = """
@@ -262,3 +263,38 @@ class TestUtil_rr_cpu_in_numa(TestCase):
         out = util.rr_cpu_in_numa()
         expected = [0, 2, 1, 3]
         self.assertEqual(out, expected)
+
+
+class DummyNcdThread(util.Thread):
+    def __init__(self, eobj):
+        util.Thread.__init__(self, eobj)
+
+    def run(self):
+        self.dumyVariable = 1
+        while (not self.ncd_shutdown.is_set()):
+            for x in range(0, 20):
+                time.sleep(1)
+        return
+
+
+class TestUtil_test_thread_creation(TestCase):
+
+    def setUp(self):
+        util.Memoize.forgot = True
+
+    def check_thread_exist(self):
+        stop_event = threading.Event()
+        tobj = DummyNcdThread(stop_event)
+        tobj.start()
+        tobj.stop_event.set()
+        tobj.join()
+        self.assertEqual(self.dumyVariable, 1)
+
+    def check_thread_no_exist(self):
+        stop_event = threading.Event()
+        tobj = DummyNcdThread(stop_event)
+        tobj.start()
+        tobj.stop_event.set()
+        tobj.join()
+        if self.dumyVariable != 1:
+            self.assertRaises(ValueError, self.dumyVariable)
