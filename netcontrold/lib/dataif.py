@@ -820,8 +820,6 @@ def get_pmd_rxqs(pmd_map):
             # get the Dataif_Port owning this rxq.
             port = pmd.find_port_by_name(pname)
             if not port:
-                # TO-DO: stop rebalance if pmd is assigned manually
-                # a new port that this run is not aware of.
                 port = pmd.add_port(pname)
 
             # update port attributes now.
@@ -1147,7 +1145,9 @@ def rebalance_dryrun_iq(pmd_map):
             # move this rxq into the rebalancing pmd.
             nlog.info("moving rxq %d (port %s) from pmd %d into idle pmd %d .."
                       % (rxq.id, port.name, pmd.id, ipmd.id))
-            iport = ipmd.add_port(port.name, port.id, port.numa_id)
+            iport = ipmd.find_port_by_name(port.name)
+            if not iport:
+                iport = ipmd.add_port(port.name, port.id, port.numa_id)
             irxq = iport.add_rxq(rxq.id)
             n_rxq_rebalanced += 1
             assert(iport.numa_id == port.numa_id)
@@ -1284,7 +1284,9 @@ def rebalance_dryrun_rr(pmd_map):
         # move this rxq into the rebalancing pmd.
         nlog.info("moving rxq %d (port %s) from pmd %d into pmd %d .."
                   % (rxq.id, port.name, pmd.id, rpmd.id))
-        rport = rpmd.add_port(port.name, port.id, port.numa_id)
+        rport = rpmd.find_port_by_name(port.name)
+        if not rport:
+            rport = rpmd.add_port(port.name, port.id, port.numa_id)
         rrxq = rport.add_rxq(rxq.id)
         n_rxq_rebalanced += 1
         assert(rport.numa_id == port.numa_id)
