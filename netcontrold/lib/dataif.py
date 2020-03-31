@@ -1047,7 +1047,7 @@ def get_interface_stats():
     return None
 
 
-def rebalance_dryrun_iq(pmd_map):
+def rebalance_dryrun_by_iq(pmd_map):
     """
     Rebalance pmds based on their current load of traffic in it and
     it is just a dry-run. In every iteration of this dry run, we keep
@@ -1191,7 +1191,7 @@ def rebalance_dryrun_iq(pmd_map):
     return n_rxq_rebalanced
 
 
-def rebalance_dryrun_rr(pmd_map):
+def rebalance_dryrun_by_cyc(pmd_map):
     """
     Rebalance pmds based on their current load of traffic in it and
     it is just a dry-run. In every iteration of this dry run, we keep
@@ -1199,8 +1199,8 @@ def rebalance_dryrun_rr(pmd_map):
     actual load on each rxq to reflect the estimated pmd load after
     every optimization.
 
-    To re-pin rxqs, the logic used is to round robin rxqs based on
-    their load put on pmds.
+    To re-pin rxqs, the logic used is to order pmds based on top
+    consuming rxqs and traverse on this list forward and backward.
 
     Parameters
     ----------
