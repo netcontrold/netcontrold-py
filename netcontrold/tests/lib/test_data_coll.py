@@ -73,7 +73,7 @@ main thread:
   avg. subtable lookups per megaflow hit: 1.00
   miss with success upcall: 74
   miss with failed upcall: 0
-  avg. packets per output batch: 1.00"""
+  avg. packets per output batch: 1.00"""  # noqa: E501
     return stats
 
 
@@ -83,7 +83,7 @@ def mock_pmd_rxqs(*args):
   port: port1   queue-id:  0  pmd usage:  0 %
 pmd thread numa_id 0 core_id 13:
   isolated : false
-  port: port2   queue-id:  0  pmd usage:  0 %"""
+  port: port2   queue-id:  0  pmd usage:  0 %"""  # noqa: E501
     return stats
 
 
@@ -100,7 +100,7 @@ def mock_port_stats(*args):
     RX packets:5 errors:0 dropped:2 overruns:0 frame:0
     TX packets:5 errors:0 dropped:3 aborted:0 carrier:0
     collisions:0
-    RX bytes:0  TX bytes:0"""
+    RX bytes:0  TX bytes:0"""  # noqa: E501
     return stats
 
 
@@ -173,7 +173,7 @@ options             : {dpdk-devargs="0000:19:00.1", n_rxq="1", n_rxq_desc="4096"
 other_config        : {}
 statistics          : {flow_director_filter_add_errors=0, flow_director_filter_remove_errors=0, mac_local_errors=1, mac_remote_errors=0, "rx_128_to_255_packets"=0, "rx_1_to_64_packets"=0, "rx_256_to_511_packets"=0, "rx_512_to_1023_packets"=0, "rx_65_to_127_packets"=0, rx_broadcast_packets=0, rx_bytes=0, rx_crc_errors=0, rx_dropped=0, rx_errors=0, rx_fcoe_crc_errors=0, rx_fcoe_dropped=0, rx_fcoe_mbuf_allocation_errors=0, rx_fragment_errors=0, rx_illegal_byte_errors=0, rx_jabber_errors=0, rx_length_errors=0, rx_mac_short_packet_dropped=0, rx_management_dropped=0, rx_management_packets=0, rx_mbuf_allocation_errors=0, rx_missed_errors=0, rx_oversize_errors=0, rx_packets=0, "rx_priority0_dropped"=0, "rx_priority0_mbuf_allocation_errors"=0, "rx_priority1_dropped"=0, "rx_priority1_mbuf_allocation_errors"=0, "rx_priority2_dropped"=0, "rx_priority2_mbuf_allocation_errors"=0, "rx_priority3_dropped"=0, "rx_priority3_mbuf_allocation_errors"=0, "rx_priority4_dropped"=0, "rx_priority4_mbuf_allocation_errors"=0, "rx_priority5_dropped"=0, "rx_priority5_mbuf_allocation_errors"=0, "rx_priority6_dropped"=0, "rx_priority6_mbuf_allocation_errors"=0, "rx_priority7_dropped"=0, "rx_priority7_mbuf_allocation_errors"=0, rx_undersize_errors=0, "tx_128_to_255_packets"=0, "tx_1_to_64_packets"=0, "tx_256_to_511_packets"=0, "tx_512_to_1023_packets"=0, "tx_65_to_127_packets"=0, tx_broadcast_packets=0, tx_bytes=0, tx_dropped=0, tx_errors=0, tx_management_packets=0, tx_multicast_packets=0, tx_packets=0}
 status              : {driver_name=net_ixgbe, if_descr="DPDK 18.11.2 net_ixgbe", if_type="6", link_speed="10Gbps", max_hash_mac_addrs="4096", max_mac_addrs="127", max_rx_pktlen="1518", max_rx_queues="128", max_tx_queues="64", max_vfs="0", max_vmdq_pools="64", min_rx_bufsize="1024", numa_id="0", pci-device_id="0x10fb", pci-vendor_id="0x8086", port_no="1"}
-type                : dpdk"""
+type                : dpdk"""  # noqa: E501
     return stats
 
 
@@ -208,7 +208,7 @@ class TestDataif_Collection(TestCase):
         port1.numa_id = fx_pmd_1.numa_id
 
         # add rxq to port object
-        rxq_1 = port1.add_rxq(0)
+        rxq_1 = port1.add_rxq(0)  # noqa: F841
 
         # create another pmd object.
         fx_pmd_2 = dataif.Dataif_Pmd(13)
@@ -227,7 +227,7 @@ class TestDataif_Collection(TestCase):
         port2.numa_id = fx_pmd_2.numa_id
 
         # add rxq to port object
-        rxq_2 = port2.add_rxq(0)
+        rxq_2 = port2.add_rxq(0)  # noqa: F841
 
         return
 
