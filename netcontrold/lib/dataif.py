@@ -1021,6 +1021,8 @@ def get_interface_stats():
             (type, ) = linesre.groups()
             port.type = type
 
+            port = None
+
         elif re.match(r'\s*statistics\s.*:\s{(.*)}', line):
             if not port:
                 continue
@@ -1034,8 +1036,6 @@ def get_interface_stats():
 
             if 'tx_retries' in dval:
                 port.tx_retry_cyc[port.cyc_idx] = int(dval['tx_retries'])
-
-            port = None
 
     # new state of ports.
     new_port_l = sorted(Context.port_to_cls.keys())
