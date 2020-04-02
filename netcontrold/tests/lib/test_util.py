@@ -15,7 +15,8 @@
 #
 from unittest import mock
 from unittest import TestCase
-
+import threading
+import time
 from netcontrold.lib import util
 
 _BASIC_CPU_INFO = """
@@ -262,3 +263,24 @@ class TestUtil_rr_cpu_in_numa(TestCase):
         out = util.rr_cpu_in_numa()
         expected = [0, 2, 1, 3]
         self.assertEqual(out, expected)
+
+
+class TestUtil_test_thread_creation(TestCase):
+
+    def setUp(self):
+        util.Memoize.forgot = True
+    thread = util.Thread(threading.Thread)
+
+    def test_check_thread_exist(self):
+        if threading.active_count() > 0:
+            value1 = 'T'
+        else:
+            value1 = 'F'
+
+        count = util.Thread_status()
+        if count > 0:
+            value2 = 'T'
+        else:
+            value2 = 'A'
+
+        self.assertEqual(value1, value2)
