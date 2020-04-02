@@ -1021,6 +1021,8 @@ def get_interface_stats():
             (type, ) = linesre.groups()
             port.type = type
 
+            port = None
+
         elif re.match(r'\s*statistics\s.*:\s{(.*)}', line):
             if not port:
                 continue
@@ -1035,8 +1037,6 @@ def get_interface_stats():
             if 'tx_retries' in dval:
                 port.tx_retry_cyc[port.cyc_idx] = int(dval['tx_retries'])
 
-            port = None
-
     # new state of ports.
     new_port_l = sorted(Context.port_to_cls.keys())
 
@@ -1047,7 +1047,7 @@ def get_interface_stats():
     return None
 
 
-def rebalance_dryrun_iq(pmd_map):
+def rebalance_dryrun_by_iq(pmd_map):
     """
     Rebalance pmds based on their current load of traffic in it and
     it is just a dry-run. In every iteration of this dry run, we keep
@@ -1191,7 +1191,7 @@ def rebalance_dryrun_iq(pmd_map):
     return n_rxq_rebalanced
 
 
-def rebalance_dryrun_rr(pmd_map):
+def rebalance_dryrun_by_cyc(pmd_map):
     """
     Rebalance pmds based on their current load of traffic in it and
     it is just a dry-run. In every iteration of this dry run, we keep
@@ -1199,8 +1199,8 @@ def rebalance_dryrun_rr(pmd_map):
     actual load on each rxq to reflect the estimated pmd load after
     every optimization.
 
-    To re-pin rxqs, the logic used is to round robin rxqs based on
-    their load put on pmds.
+    To re-pin rxqs, the logic used is to order pmds based on top
+    consuming rxqs and traverse on this list forward and backward.
 
     Parameters
     ----------
@@ -1222,26 +1222,41 @@ def rebalance_dryrun_rr(pmd_map):
         nlog.debug("no pmd needs rebalance ..")
         return n_rxq_rebalanced
 
-    # Sort pmds in pmd_map based on the id (i.e constant order)
+    # Sort pmds in pmd_map based on busier rxqs and then use some
+    # constant order that system provides, to fill up the list.
+    pmd_list = []
     rr_cpus = util.rr_cpu_in_numa()
-    pmd_list_forward = []
     for cpu in rr_cpus:
         if cpu in pmd_map:
-            pmd_list_forward.append(pmd_map[cpu])
+            pmd_list.append(pmd_map[cpu])
 
-    pmd_list_reverse = pmd_list_forward[::-1]
-    pmd_list = pmd_list_forward
-    idx_forward = True
-
-    # Sort rxqs in across the pmds based on cpu cycles consumed,
-    # in ascending order.
     rxq_list = []
+    pmd_rxq_n = {}
     for pmd in pmd_list:
+        pmd_rxq_n[pmd.id] = 0
         for port in pmd.port_map.values():
             rxq_list += port.rxq_map.values()
 
     rxq_load_list = sorted(
         rxq_list, key=lambda o: sum(o.cpu_cyc), reverse=True)
+    pmd_list_forward = []
+    for rxq in rxq_load_list:
+        if rxq.pmd not in pmd_list_forward:
+            pmd_list_forward.append(rxq.pmd)
+
+    if (len(pmd_list_forward) < len(pmd_list)):
+        for pmd in pmd_list:
+            if pmd not in pmd_list_forward:
+                pmd_list_forward.append(pmd)
+
+    nlog.debug("cpu numbering based on system info is %s" %
+               (",".join(str(x) for x in rr_cpus)))
+    nlog.debug("traverse order on pmds based on rxqs is %s" %
+               (",".join(str(x.id) for x in pmd_list_forward)))
+
+    pmd_list_reverse = pmd_list_forward[::-1]
+    pmd_list = pmd_list_forward
+    idx_forward = True
 
     rpmd = None
     rpmd_gen = (o for o in pmd_list)
@@ -1252,28 +1267,47 @@ def rebalance_dryrun_rr(pmd_map):
         if len(port.rxq_map) == 0:
             continue
 
-        for rpmd in rpmd_gen:
-            # Current pmd and rebalancing pmd should be in same numa.
-            if (rpmd.numa_id == port.numa_id):
-                break
-        else:
-            rpmd_gen = (o for o in pmd_list)
-            rpmd = None
+        rpmd = None
+        while (not rpmd):
+            for rpmd in rpmd_gen:
+                # choose pmd from same numa.
+                if (rpmd.numa_id == port.numa_id):
+                    # for top consuming rxqs.
+                    if (pmd_rxq_n[pmd.id] == 0):
+                        if(rpmd.id == pmd.id):
+                            pmd_rxq_n[pmd.id] += 1
+                            break
+                        else:
+                            continue
+                    # owning pmd has already taken topper
+                    pmd_rxq_n[rpmd.id] += 1
+                    break
+            else:
+                pmd_n = len(pmd_list)
+                pmd_rxq_s = sum([p for p in pmd_rxq_n.values()])
+                if ((pmd_n % n_rxq_rebalanced) != 0 and pmd_rxq_s < pmd_n):
+                    rpmd_gen = (o for o in pmd_list)
+                    rpmd = None
+                    continue
+
+                # reverse traverse direction
+                if idx_forward:
+                    pmd_list = pmd_list_reverse
+                    idx_forward = False
+                else:
+                    pmd_list = pmd_list_forward
+                    idx_forward = True
+                rpmd_gen = (o for o in pmd_list)
+                rpmd = None
+
+        # check while else for last rpmd
 
         if not rpmd:
-            nlog.debug("no rebalancing pmd on numa(%d) for port %s rxq %d.."
-                       % (port.numa_id, port.name, rxq.id))
-            n_rxq_rebalanced += 1
-            continue
+            raise ObjConsistencyExc(
+                "no rebalancing pmd on numa(%d) for port %s rxq %d.."
+                % (port.numa_id, port.name, rxq.id))
 
-        if pmd_list.index(rpmd) == (len(pmd_list) - 1):
-            if idx_forward:
-                pmd_list = pmd_list_reverse
-                idx_forward = False
-            else:
-                pmd_list = pmd_list_forward
-                idx_forward = True
-            rpmd_gen = (o for o in pmd_list)
+        assert(rpmd.numa_id == port.numa_id)
 
         if pmd.id == rpmd.id:
             nlog.info("no change needed for rxq %d (port %s) in pmd %d"

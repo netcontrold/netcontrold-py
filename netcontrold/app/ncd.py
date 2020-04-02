@@ -458,7 +458,7 @@ def ncd_main(argv):
     argpobj.add_argument('--rebalance-iq',
                          action='store_true',
                          default=False,
-                         help='rebalance by idle-queue logic '
+                         help='rebalance by iterative queues logic '
                                 '(default: False)')
 
     argpobj.add_argument('-q', '--quiet',
@@ -522,17 +522,17 @@ def ncd_main(argv):
     # set rebalance dryrun count
     ncd_rebal_n = args.rebalance_n
 
-    # set idle queue rebalance algorithm
+    # set iterative queue rebalance algorithm
     ncd_iq_rebal = args.rebalance_iq
 
     # set rebalance method.
     if ncd_iq_rebal:
-        rebalance_dryrun = dataif.rebalance_dryrun_iq
+        rebalance_dryrun = dataif.rebalance_dryrun_by_iq
     else:
         # round robin logic to rebalance.
-        rebalance_dryrun = dataif.rebalance_dryrun_rr
+        rebalance_dryrun = dataif.rebalance_dryrun_by_cyc
 
-        # restrict only one dry run for rr mode.
+        # restrict only one dry run for cycles based mode.
         ncd_rebal_n = 1
 
     # set check point to call rebalance in vswitch
