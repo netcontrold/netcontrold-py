@@ -104,6 +104,7 @@ class Dataif_Rxq(Rxq):
 
         self.pmd = None
         self.cpu_cyc = [0, ] * int(config.ncd_samples_max)
+        self.rx_cyc = [0, ] * int(config.ncd_samples_max)
 
 
 class Port(object):
@@ -420,6 +421,8 @@ class Dataif_Pmd(object):
             for rxq_id, rxq in port.rxq_map.items():
                 pstr += "    rxq %d\n" % rxq_id
                 for i in range(0, len(rxq.cpu_cyc)):
+                    elm = rxq.rx_cyc[i]
+                    pstr += "    rxq %d rx_cyc[%d] %d\n" % (rxq_id, i, elm)
                     elm = rxq.cpu_cyc[i]
                     pstr += "    rxq %d cpu_cyc[%d] %d\n" % (rxq_id, i, elm)
         return pstr
@@ -831,34 +834,8 @@ def get_pmd_rxqs(pmd_map):
 
             # check whether this rxq was being rebalanced.
             if qid in port.rxq_rebalanced:
-                # In dry-run, we need to update cpu cycles consumed by
-                # this rxq (through current pmd), into the processing
-                # cycles of the rebalancing pmd. Then the load of the
-                # rebalancing pmd could be estimated appropriately.
-                reb_pmd_id = port.rxq_rebalanced[qid]
-                reb_pmd = pmd_map[reb_pmd_id]
-                reb_port = reb_pmd.find_port_by_name(port.name)
-                rxq = reb_port.find_rxq_by_id(qid)
-                # qcpu is in percentage in this data, so we convert it
-                # into actual cycles using processing cycles that this
-                # pmd consumed.
-                # qrx is approximate count of packets that this rxq
-                # received.
-                cur_idx = pmd.cyc_idx
-                prev_idx = (cur_idx - 1) % config.ncd_samples_max
-                rx_diff = pmd.rx_cyc[cur_idx] - pmd.rx_cyc[prev_idx]
-                cpu_diff = pmd.proc_cpu_cyc[
-                    cur_idx] - pmd.proc_cpu_cyc[prev_idx]
-                qrx = (qcpu * rx_diff) / 100
-                qcpu = (qcpu * cpu_diff) / 100
-                # update rebalancing pmd for cpu cycles and rx count.
-                reb_pmd.proc_cpu_cyc[cur_idx] += qcpu
-                reb_pmd.idle_cpu_cyc[cur_idx] -= qcpu
-                reb_pmd.rx_cyc[pmd.cyc_idx] += qrx
-                # update current pmd for cpu cycles and rx count.
-                pmd.proc_cpu_cyc[pmd.cyc_idx] -= qcpu
-                pmd.idle_cpu_cyc[pmd.cyc_idx] += qcpu
-                pmd.rx_cyc[pmd.cyc_idx] -= qrx
+                raise ObjConsistencyExc(
+                    "stale %s object found while parsing rxq in pmd ..")
             else:
                 # port not in rebalancing state, so update rxq for its
                 # cpu cycles consumed by it.
@@ -874,6 +851,7 @@ def get_pmd_rxqs(pmd_map):
                 qrx = (qcpu * rx_diff) / 100
 
             rxq.cpu_cyc[pmd.cyc_idx] = qcpu
+            rxq.rx_cyc[pmd.cyc_idx] = qrx
         else:
             # From other line, we retrieve isolated flag.
             (sname, sval) = line.split(":")
@@ -1155,31 +1133,29 @@ def rebalance_dryrun_by_iq(pmd_map):
             # Copy cpu cycles of this rxq into its clone in
             # in rebalancing pmd (for dry-run).
             irxq.cpu_cyc = copy.deepcopy(rxq.cpu_cyc)
+            irxq.rx_cyc = copy.deepcopy(rxq.rx_cyc)
 
-            # Add cpu cycles of this rxq into processing cycles of
-            # the rebalancing pmd, so that its current pmd load
-            # level reflects this change.
+            cur_idx = pmd.cyc_idx
             for i in range(0, config.ncd_samples_max):
-                ipmd.proc_cpu_cyc[i] += irxq.cpu_cyc[i]
-                ipmd.idle_cpu_cyc[i] -= irxq.cpu_cyc[i]
+                # update rebalancing pmd for cpu cycles and rx count.
+                ipmd.proc_cpu_cyc[cur_idx] += irxq.cpu_cyc[cur_idx]
+                ipmd.idle_cpu_cyc[cur_idx] -= irxq.cpu_cyc[cur_idx]
+                ipmd.rx_cyc[cur_idx] += irxq.rx_cyc[cur_idx]
+
+                # update current pmd for cpu cycles and rx count.
+                pmd.proc_cpu_cyc[cur_idx] -= irxq.cpu_cyc[cur_idx]
+                pmd.idle_cpu_cyc[cur_idx] += irxq.cpu_cyc[cur_idx]
+                pmd.rx_cyc[cur_idx] -= irxq.rx_cyc[cur_idx]
+
+                cur_idx = (cur_idx - 1) % config.ncd_samples_max
 
             # No more tracking of this rxq in current pmd.
             port.del_rxq(rxq.id)
+            port.rxq_rebalanced[rxq.id] = ipmd.id
+            irxq.pmd = pmd
 
-            # Until dry-run is completed and rebalance completed,
-            # this rxq should know its current pmd, even it is
-            # with rebalancing pmd. Only then, we can derive cpu
-            # usage of this rxq from its current pmd (as we scan
-            # data in each sampling interval).
-            opmd = rxq.pmd
-            oport = opmd.find_port_by_name(port.name)
-            oport.rxq_rebalanced[rxq.id] = ipmd.id
-            irxq.pmd = opmd
-
-            # Similar updates in original pmd as well.
-            for i in range(0, config.ncd_samples_max):
-                opmd.proc_cpu_cyc[i] -= irxq.cpu_cyc[i]
-                opmd.idle_cpu_cyc[i] += irxq.cpu_cyc[i]
+            # Calculate current load on every pmd.
+            update_pmd_load(pmd_map)
 
             # check if rebalancing pmd has got enough work.
             update_pmd_load(pmd_map)
@@ -1325,22 +1301,33 @@ def rebalance_dryrun_by_cyc(pmd_map):
         n_rxq_rebalanced += 1
         assert(rport.numa_id == port.numa_id)
 
-        # Copy cpu cycles of this rxq into its clone in
+        # Copy cpu and rxq cycles of this rxq into its clone in
         # in rebalancing pmd (for dry-run).
         rrxq.cpu_cyc = copy.deepcopy(rxq.cpu_cyc)
+        rrxq.rx_cyc = copy.deepcopy(rxq.rx_cyc)
+
+        cur_idx = pmd.cyc_idx
+        for i in range(0, config.ncd_samples_max):
+            # update rebalancing pmd for cpu cycles and rx count.
+            rpmd.proc_cpu_cyc[cur_idx] += rrxq.cpu_cyc[cur_idx]
+            rpmd.idle_cpu_cyc[cur_idx] -= rrxq.cpu_cyc[cur_idx]
+            rpmd.rx_cyc[cur_idx] += rrxq.rx_cyc[cur_idx]
+
+            # update current pmd for cpu cycles and rx count.
+            pmd.proc_cpu_cyc[cur_idx] -= rrxq.cpu_cyc[cur_idx]
+            pmd.idle_cpu_cyc[cur_idx] += rrxq.cpu_cyc[cur_idx]
+            pmd.rx_cyc[cur_idx] -= rrxq.rx_cyc[cur_idx]
+
+            cur_idx = (cur_idx - 1) % config.ncd_samples_max
 
         # No more tracking of this rxq in current pmd.
         port.del_rxq(rxq.id)
+        port.rxq_rebalanced[rxq.id] = rpmd.id
+        rrxq.pmd = pmd
 
-        # Until dry-run is completed and rebalance completed,
-        # this rxq should know its current pmd, even it is
-        # with rebalancing pmd. Only then, we can derive cpu
-        # usage of this rxq from its current pmd (as we scan
-        # data in each sampling interval).
-        opmd = rxq.pmd
-        oport = opmd.find_port_by_name(port.name)
-        oport.rxq_rebalanced[rxq.id] = rpmd.id
-        rrxq.pmd = opmd
+    if n_rxq_rebalanced:
+        # Calculate current load on every pmd.
+        update_pmd_load(pmd_map)
 
     return n_rxq_rebalanced
 
