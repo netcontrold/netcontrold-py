@@ -258,6 +258,7 @@ def collect_data(n_samples, s_sampling):
             break
 
         try:
+            rctx.rebal_tick += 1
             dataif.get_port_stats()
             dataif.get_interface_stats()
             dataif.get_pmd_stats(ctx.pmd_map)
@@ -326,7 +327,6 @@ def collect_data(n_samples, s_sampling):
     now = datetime.now()
     ctx.last_ts = now.strftime("%Y-%m-%d %H:%M:%S")
     dataif.update_pmd_load(ctx.pmd_map)
-    rctx.rebal_tick += n_samples
 
     return ctx
 
@@ -687,7 +687,7 @@ def ncd_main(argv):
                 # check if balance state of all pmds is reached
                 if rctx.apply_rebal:
                     # check if rebalance call needed really.
-                    if (rctx.rebal_tick > rctx.rebal_tick_n):
+                    if (rctx.rebal_tick >= rctx.rebal_tick_n):
                         rctx.rebal_tick = 0
                         cmd = rebalance_switch(pmd_map)
                         ctx.events.append(("pmd", "rebalance", ctx.last_ts))
