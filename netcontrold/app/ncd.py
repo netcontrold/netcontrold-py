@@ -258,6 +258,7 @@ def collect_data(n_samples, s_sampling):
             break
 
         try:
+            rctx.rebal_tick += 1
             dataif.get_port_stats()
             dataif.get_interface_stats()
             dataif.get_pmd_stats(ctx.pmd_map)
@@ -326,7 +327,6 @@ def collect_data(n_samples, s_sampling):
     now = datetime.now()
     ctx.last_ts = now.strftime("%Y-%m-%d %H:%M:%S")
     dataif.update_pmd_load(ctx.pmd_map)
-    rctx.rebal_tick += n_samples
 
     return ctx
 
@@ -539,9 +539,6 @@ def ncd_main(argv):
     rctx = RebalContext
     rctx.rebal_tick_n = ncd_rebal_interval / ncd_sample_interval
 
-    # rebalance dryrun iteration
-    rebal_i = 0
-
     if ncd_rebal:
         # adjust length of the samples counter
         config.ncd_samples_max = min(
@@ -592,7 +589,7 @@ def ncd_main(argv):
             nlog.info("current pmd load variance: %d" % cur_var)
 
             # do not trace if rebalance dry-run in progress.
-            if tctx.trace_mode and not rebal_i:
+            if tctx.trace_mode:
                 pmd_cb_list = []
                 for pname in sorted(ctx.port_to_cls.keys()):
                     port = ctx.port_to_cls[pname]
@@ -660,42 +657,40 @@ def ncd_main(argv):
                 ncd_samples_max = config.ncd_samples_max
 
             # dry-run pmd rebalance.
-            if pmd_map and rebalance_dryrun(pmd_map):
-                rebal_i += 1
+            rebal_rxq_n = 0
+            if pmd_map:
+                for i in range(0, ncd_rebal_n):
+                    n = 0
+                    n = rebalance_dryrun(pmd_map)
+                    if (n > 0):
+                        rebal_rxq_n += n
 
             # restart sampling when no dry-run performed.
-            if not rebal_i:
+            if rebal_rxq_n == 0:
                 nlog.info("no dryrun performed.")
                 continue
 
             else:
                 # compare previous and current state of pmds.
                 prev_var = cur_var
-                collect_data(ncd_samples_max, ncd_sample_interval)
                 cur_var = dataif.pmd_load_variance(pmd_map)
-
-                nlog.info("pmd load in dry run(%d):" % rebal_i)
+                nlog.info("pmd load after dry run:")
                 for pmd_id in sorted(pmd_map.keys()):
                     pmd = pmd_map[pmd_id]
                     nlog.info("pmd id %d load %d" % (pmd_id, pmd.pmd_load))
 
-                nlog.info("pmd load variance: previous %d, in dry run(%d) %d" %
-                          (prev_var, rebal_i, cur_var))
+                nlog.info("pmd load variance: previous %d, after dry run %d" %
+                          (prev_var, cur_var))
 
                 if (cur_var < prev_var):
                     diff = (prev_var - cur_var) * 100 / prev_var
                     if diff > config.ncd_pmd_load_improve_min:
                         rctx.apply_rebal = True
 
-                # check if we reached maximum allowable dry-runs.
-                if rebal_i < ncd_rebal_n:
-                    # continue for more dry runs.
-                    continue
-
                 # check if balance state of all pmds is reached
                 if rctx.apply_rebal:
                     # check if rebalance call needed really.
-                    if (rctx.rebal_tick > rctx.rebal_tick_n):
+                    if (rctx.rebal_tick >= rctx.rebal_tick_n):
                         rctx.rebal_tick = 0
                         cmd = rebalance_switch(pmd_map)
                         ctx.events.append(("pmd", "rebalance", ctx.last_ts))
@@ -731,7 +726,6 @@ def ncd_main(argv):
                 ctx.port_to_cls.clear()
                 ctx.port_to_id.clear()
                 ncd_samples_max = config.ncd_samples_max
-                rebal_i = 0
                 min_sample_i = 0
 
                 nlog.info("dry-run reset.")
