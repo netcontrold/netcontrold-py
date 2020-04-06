@@ -1048,14 +1048,14 @@ def rebalance_dryrun_by_iq(pmd_map):
 
     if len(pmd_map) <= 1:
         nlog.debug("not enough pmds to rebalance ..")
-        return n_rxq_rebalanced
+        return -1
 
     # Calculate current load on every pmd.
     update_pmd_load(pmd_map)
 
     if not pmd_need_rebalance(pmd_map):
         nlog.debug("no pmd needs rebalance ..")
-        return n_rxq_rebalanced
+        return -1
 
     # Sort pmds in pmd_map based on the rxq load, in descending order.
     # Pick the pmd which is more loaded from one end of the list.
@@ -1189,14 +1189,14 @@ def rebalance_dryrun_by_cyc(pmd_map):
 
     if len(pmd_map) <= 1:
         nlog.debug("not enough pmds to rebalance ..")
-        return n_rxq_rebalanced
+        return -1
 
     # Calculate current load on every pmd.
     update_pmd_load(pmd_map)
 
     if not pmd_need_rebalance(pmd_map):
         nlog.debug("no pmd needs rebalance ..")
-        return n_rxq_rebalanced
+        return -1
 
     # Sort pmds in pmd_map based on busier rxqs and then use some
     # constant order that system provides, to fill up the list.
@@ -1208,8 +1208,13 @@ def rebalance_dryrun_by_cyc(pmd_map):
 
     rxq_list = []
     pmd_rxq_n = {}
+    numa_pmd_n = {}
     for pmd in pmd_list:
         pmd_rxq_n[pmd.id] = 0
+        if pmd.numa_id not in numa_pmd_n:
+            numa_pmd_n[pmd.numa_id] = 0
+
+        numa_pmd_n[pmd.numa_id] += 1
         for port in pmd.port_map.values():
             rxq_list += port.rxq_map.values()
 
@@ -1259,9 +1264,8 @@ def rebalance_dryrun_by_cyc(pmd_map):
                     pmd_rxq_n[rpmd.id] += 1
                     break
             else:
-                pmd_n = len(pmd_list)
-                pmd_rxq_s = sum([p for p in pmd_rxq_n.values()])
-                if ((pmd_n % n_rxq_rebalanced) != 0 and pmd_rxq_s < pmd_n):
+                pmd_rxq_s = sum(map(lambda x: int(x > 0), pmd_rxq_n.values()))
+                if (pmd_rxq_s < numa_pmd_n[port.numa_id]):
                     rpmd_gen = (o for o in pmd_list)
                     rpmd = None
                     continue
@@ -1276,6 +1280,9 @@ def rebalance_dryrun_by_cyc(pmd_map):
                 rpmd_gen = (o for o in pmd_list)
                 rpmd = None
 
+            if rpmd:
+                break
+
         # check while else for last rpmd
 
         if not rpmd:
@@ -1288,7 +1295,6 @@ def rebalance_dryrun_by_cyc(pmd_map):
         if pmd.id == rpmd.id:
             nlog.info("no change needed for rxq %d (port %s) in pmd %d"
                       % (rxq.id, port.name, pmd.id))
-            n_rxq_rebalanced += 1
             continue
 
         # move this rxq into the rebalancing pmd.
