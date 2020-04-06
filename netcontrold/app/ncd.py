@@ -660,7 +660,10 @@ def ncd_main(argv):
             rebal_rxq_n = 0
             if pmd_map:
                 for i in range(0, ncd_rebal_n):
-                    rebal_rxq_n += rebalance_dryrun(pmd_map)
+                    n = 0
+                    n = rebalance_dryrun(pmd_map)
+                    if (n > 0):
+                        rebal_rxq_n += n
 
             # restart sampling when no dry-run performed.
             if rebal_rxq_n == 0:
