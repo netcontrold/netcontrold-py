@@ -14,6 +14,7 @@
 #  limitations under the License.
 #
 import copy
+import pytest
 from unittest import TestCase
 from unittest import mock
 from netcontrold.lib import dataif
@@ -86,12 +87,68 @@ core id         : 1
 physical id     : 1
 """
 
+# -----------------------------------------------------------------------------
+# Guidelines for setting pmd and rxq countes:
+# -----------------------------------------------------------------------------
+#
+# rxq.cpu_cyc:
+#   Number of cpu cycles consumed by a rxq during sample period.
+#
+# rxq.rx_cyc:
+#   Number of packets received by a rxq during sample period.
+#
+# pmd.proc_cpu_cyc:
+#   Number of cpu cycles consumed by a pmd since its stats start/reset.
+#
+# pmd.idle_cpu_cyc:
+#   Number of cpu cycles not consumed by a pmd since its stats start/reset.
+#
+# pmd.rx_cyc:
+#   Number of packets received by a pmd since its stats start/reset.
+#
+# Testobj.setup()
+#   In setting up test environment, one or more pmd could be created for the
+#   tests in that suite to use. By default, setup() function should create
+#   a pmd for its load capacity at 96 % (i.e 1 % more than rebalance
+#   threshold).
+#
+#   pmd.proc_cpu_cyc = 96
+#   pmd.idle_cpu_cyc = 04
+#   pmd.rx_cyc = 96
+#
+#   Hence that pmd would be shown at 96 % load capacity. When there are more
+#   than one pmd to be created, at the minimum setting up one pmd to exceed
+#   rebalance threshold value is must. The other pmds should setup load
+#   capacity for 90 % in similar counter settings as above.
+#
+#   pmd.proc_cpu_cyc = 90
+#   pmd.idle_cpu_cyc = 10
+#   pmd.rx_cyc = 90
+#
+#   In all above, rx_cyc of a pmd should always reflect at proc_cpu_cyc
+#   of that pmd for an easier calculation (i.e one packet per cpu cyc).
+#
+#   One or more rxq participating in a pmd for its load capacity, should
+#   split proc_cpu_cyc among themself for a suitable rxq consumption level.
+#
+#   For eg, rxq1 and rxq2 in a pmd of load level 70 % could have
+#   rxq1.cpu_cyc = 50
+#   rxq1.rx_cyc = 50
+#   rxq2.cpu_cyc = 20
+#   rxq2.rx_cyc = 20
+#
+#   Every test should modify the default values provided by setup() function
+#   for that test suite or fx_ function which was for a common usage across
+#   the tests.
+# -----------------------------------------------------------------------------
+
 
 class TestRebalDryrun_OnePmd(TestCase):
     """
     Test rebalance for one or more rxq handled by one pmd.
     """
 
+    rebalance_dryrun = dataif.rebalance_dryrun_by_cyc
     pmd_map = dict()
     core_id = 0
 
@@ -112,9 +169,9 @@ class TestRebalDryrun_OnePmd(TestCase):
 
         # add some cpu consumption for this pmd.
         for i in range(0, config.ncd_samples_max):
-            fx_pmd.idle_cpu_cyc[i] = (1000 + (100 * i))
-            fx_pmd.proc_cpu_cyc[i] = (5000 + (500 * i))
-            fx_pmd.rx_cyc[i] = (10000 + (100 * i))
+            fx_pmd.idle_cpu_cyc[i] = (4 * (i + 1))
+            fx_pmd.proc_cpu_cyc[i] = (96 * (i + 1))
+            fx_pmd.rx_cyc[i] = (96 * (i + 1))
 
         self.pmd_map[self.core_id] = fx_pmd
         return
@@ -141,14 +198,17 @@ class TestRebalDryrun_OnePmd(TestCase):
 
         # add some cpu consumption for this rxq.
         for i in range(0, config.ncd_samples_max):
-            fx_rxq.cpu_cyc[i] = (1000 + (100 * i))
+            fx_rxq.cpu_cyc[i] = (96 * (i + 1))
+            fx_rxq.rx_cyc[i] = (96 * (i + 1))
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         # 1. no rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 0)
+        self.assertEqual(n_reb_rxq, -1)
+        # 2. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd), 96)
 
         # del port object from pmd.
         pmd.del_port(port_name)
@@ -175,14 +235,17 @@ class TestRebalDryrun_OnePmd(TestCase):
 
             # add some cpu consumption for this rxq.
             for i in range(0, config.ncd_samples_max):
-                fx_rxq.cpu_cyc[i] = (1000 + (100 * i))
+                fx_rxq.cpu_cyc[i] = (32 * (i + 1))
+                fx_rxq.rx_cyc[i] = (32 * (i + 1))
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         # 1. no rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 0)
+        self.assertEqual(n_reb_rxq, -1)
+        # 2. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd), 96)
 
         # del port object from pmd.
         for port_name in ('virtport1', 'virtport2', 'virtport3'):
@@ -218,8 +281,10 @@ def fx_2pmd_each_1rxq(testobj):
 
     # add some cpu consumption for these rxqs.
     for i in range(0, config.ncd_samples_max):
-        fx_p1rxq.cpu_cyc[i] = (1000 + (100 * i))
-        fx_p2rxq.cpu_cyc[i] = (2000 + (200 * i))
+        fx_p1rxq.cpu_cyc[i] = (96 * (i + 1))
+        fx_p1rxq.rx_cyc[i] = (96 * (i + 1))
+        fx_p2rxq.cpu_cyc[i] = (90 * (i + 1))
+        fx_p2rxq.rx_cyc[i] = (90 * (i + 1))
 
 
 # Fixture:
@@ -253,8 +318,10 @@ def fx_2pmd_one_empty(testobj):
 
     # add some cpu consumption for these rxqs.
     for i in range(0, config.ncd_samples_max):
-        fx_p1rxq.cpu_cyc[i] = (1000 + (100 * i))
-        fx_p2rxq.cpu_cyc[i] = (2000 + (200 * i))
+        fx_p1rxq.cpu_cyc[i] = (6 * (i + 1))
+        fx_p1rxq.rx_cyc[i] = (6 * (i + 1))
+        fx_p2rxq.cpu_cyc[i] = (90 * (i + 1))
+        fx_p2rxq.rx_cyc[i] = (90 * (i + 1))
 
 
 # Fixture:
@@ -300,10 +367,14 @@ def fx_2pmd_each_2rxq(testobj):
     # add some cpu consumption for these rxqs.
     # order of rxqs based on cpu consumption: rxqp1,rxqp2,rxqp3,rxqp4
     for i in range(0, config.ncd_samples_max):
-        fx_p1rxq.cpu_cyc[i] = (4000 + (400 * i))
-        fx_p2rxq.cpu_cyc[i] = (3000 + (300 * i))
-        fx_p3rxq.cpu_cyc[i] = (2000 + (200 * i))
-        fx_p4rxq.cpu_cyc[i] = (1000 + (100 * i))
+        fx_p1rxq.cpu_cyc[i] = (70 * (i + 1))
+        fx_p1rxq.rx_cyc[i] = (6 * (i + 1))
+        fx_p2rxq.cpu_cyc[i] = (65 * (i + 1))
+        fx_p2rxq.rx_cyc[i] = (6 * (i + 1))
+        fx_p3rxq.cpu_cyc[i] = (26 * (i + 1))
+        fx_p3rxq.rx_cyc[i] = (6 * (i + 1))
+        fx_p4rxq.cpu_cyc[i] = (25 * (i + 1))
+        fx_p4rxq.rx_cyc[i] = (6 * (i + 1))
 
 # Fixture:
 #   Create two pmd thread objects where in, two queued ports split
@@ -346,10 +417,10 @@ def fx_2pmd_each_1p2rxq(testobj):
     # add some cpu consumption for these rxqs.
     # order of rxqs based on cpu consumption: rxq1p1,rxq2p2,rxq1p2,rxq2p1
     for i in range(0, config.ncd_samples_max):
-        fx_p1rxq1.cpu_cyc[i] = (4000 + (400 * i))
-        fx_p2rxq2.cpu_cyc[i] = (3000 + (300 * i))
-        fx_p2rxq1.cpu_cyc[i] = (2000 + (200 * i))
-        fx_p1rxq2.cpu_cyc[i] = (1000 + (100 * i))
+        fx_p1rxq1.cpu_cyc[i] = (90 * (i + 1))
+        fx_p2rxq2.cpu_cyc[i] = (60 * (i + 1))
+        fx_p1rxq2.cpu_cyc[i] = (30 * (i + 1))
+        fx_p2rxq1.cpu_cyc[i] = (6 * (i + 1))
 
 
 class TestRebalDryrun_TwoPmd(TestCase):
@@ -357,6 +428,7 @@ class TestRebalDryrun_TwoPmd(TestCase):
     Test rebalance for one or more rxq handled by two pmds.
     """
 
+    rebalance_dryrun = dataif.rebalance_dryrun_by_cyc
     pmd_map = dict()
     core1_id = 0
     core2_id = 1
@@ -380,14 +452,14 @@ class TestRebalDryrun_TwoPmd(TestCase):
 
         # add some cpu consumption for these pmds.
         for i in range(0, config.ncd_samples_max):
-            fx_pmd1.idle_cpu_cyc[i] = (1 + (1 * i))
-            fx_pmd1.proc_cpu_cyc[i] = (900 + (90 * i))
-            fx_pmd1.rx_cyc[i] = (1000 + (100 * i))
+            fx_pmd1.idle_cpu_cyc[i] = (4 * (i + 1))
+            fx_pmd1.proc_cpu_cyc[i] = (96 * (i + 1))
+            fx_pmd1.rx_cyc[i] = (100 * (i + 1))
 
         for i in range(0, config.ncd_samples_max):
-            fx_pmd2.idle_cpu_cyc[i] = (1000 + (100 * i))
-            fx_pmd2.proc_cpu_cyc[i] = (9500 + (950 * i))
-            fx_pmd2.rx_cyc[i] = (10000 + (100 * i))
+            fx_pmd2.idle_cpu_cyc[i] = (10 * (i + 1))
+            fx_pmd2.proc_cpu_cyc[i] = (90 * (i + 1))
+            fx_pmd2.rx_cyc[i] = (100 * (i + 1))
 
         self.pmd_map[self.core1_id] = fx_pmd1
         self.pmd_map[self.core2_id] = fx_pmd2
@@ -413,14 +485,17 @@ class TestRebalDryrun_TwoPmd(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         # 1. all two rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 0, "no rebalance expected")
+        self.assertEqual(n_reb_rxq, -1, "no rebalance expected")
         # 2. each pmd is not updated.
         self.assertEqual(pmd_map[self.core1_id], pmd1)
         self.assertEqual(pmd_map[self.core2_id], pmd2)
+        # 3. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), 96)
+        self.assertEqual(dataif.pmd_load(pmd2), 90)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -455,6 +530,12 @@ class TestRebalDryrun_TwoPmd(TestCase):
         pmd1.numa_id = 0
         pmd2.numa_id = 0
 
+        # let pmd2 be idle
+        for i in range(0, config.ncd_samples_max):
+            pmd2.idle_cpu_cyc[i] = (100 * (i + 1))
+            pmd2.proc_cpu_cyc[i] = (0 * (i + 1))
+            pmd2.rx_cyc[i] = (0 * (i + 1))
+
         # create rxq
         fx_2pmd_one_empty(self)
 
@@ -465,11 +546,11 @@ class TestRebalDryrun_TwoPmd(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         # 1. all two rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 2, "two rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 1, "one rxq to be rebalanced")
         # 2. each pmd is updated.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -481,6 +562,9 @@ class TestRebalDryrun_TwoPmd(TestCase):
         self.assertEqual(port2.find_rxq_by_id(0).pmd.id, pmd1.id)
         # 3.a rxqp1 moves into pmd2
         self.assertEqual(port1.rxq_rebalanced[0], pmd2.id)
+        # 4. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), 90)
+        self.assertEqual(dataif.pmd_load(pmd2), 6)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -490,23 +574,18 @@ class TestRebalDryrun_TwoPmd(TestCase):
     # Test case:
     #   With two threads from same numa, where each pmd thread is  handling
     #   one queue from two-queued ports. check whether rebalance is performed.
-    #   Scope is to check if rebalancing done on pmd that already has same
-    #   port but different rxq.
+    #   Scope is to check if rxq affinity is retained.
     #
-    #   order of rxqs based on cpu consumption: rxq1p1,rxq2p2,rxq1p2,rxq2p1
+    #   order of rxqs based on cpu consumption: rxq1p1,rxq2p2,rxq2p1,rxq1p2
     #   order of pmds for rebalance dryrun: pmd1,pmd2,pmd2,pmd1
     #
-    #   1. rxq1p1(pmd1) -NOREB-> rxq1p1(pmd1)
-    #      rxq2p2(pmd2) -NOREB-> rxq2p2(pmd2)
-    #      rxq1p2(pmd1)
-    #      rxq2p1(pmd2)
+    #   1. rxq1p1(pmd1) 90% -NOREB-> rxq1p1(pmd1)
+    #      rxq1p2(pmd1)  6% -NOREB-> rxq1p2(pmd1)
+    #      rxq2p2(pmd2) 60% -NOREB-> rxq2p2(pmd2)
+    #      rxq2p1(pmd2) 30% -NOREB-> rxq2p1(pmd1)
     #
-    #   2. rxq1p1(pmd1) -NOREB-> rxq1p1(pmd1)
-    #      rxq2p2(pmd2) -NOREB-> rxq2p2(pmd2)
-    #      rxq1p2(pmd1) --+--+-> rxq1p2(reb_pmd2)
-    #      rxq2p1(pmd2) --+--+-> rxq2p1(reb_pmd1)
     @mock.patch('netcontrold.lib.util.open')
-    def test_two_1p2rxq_lnuma(self, mock_open):
+    def test_two_1p2rxq_lnuma_norb(self, mock_open):
         mock_open.side_effect = [
             mock.mock_open(read_data=_FX_CPU_INFO).return_value
         ]
@@ -527,14 +606,14 @@ class TestRebalDryrun_TwoPmd(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 4, "four rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 0, "no rebalance expected")
         # 2. each pmd is updated.
-        self.assertNotEqual(pmd_map[self.core1_id], pmd1)
-        self.assertNotEqual(pmd_map[self.core2_id], pmd2)
+        self.assertEqual(pmd_map[self.core1_id], pmd1)
+        self.assertEqual(pmd_map[self.core2_id], pmd2)
         # 3. check rxq map after dryrun.
         port11 = pmd1.find_port_by_name('virtport1')
         port12 = pmd2.find_port_by_name('virtport1')
@@ -542,12 +621,111 @@ class TestRebalDryrun_TwoPmd(TestCase):
         port22 = pmd2.find_port_by_name('virtport2')
         self.assertEqual(port11.rxq_rebalanced, {})
         self.assertEqual(port22.rxq_rebalanced, {})
-        self.assertEqual(port21.rxq_rebalanced[0], pmd2.id)
-        self.assertEqual(port12.rxq_rebalanced[1], pmd1.id)
+        self.assertEqual(port21.rxq_rebalanced, {})
+        self.assertEqual(port12.rxq_rebalanced, {})
+        # 4. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), 96)
+        self.assertEqual(dataif.pmd_load(pmd2), 90)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
         pmd1.del_port('virtport1')
+        pmd2.del_port('virtport2')
+
+    # Test case:
+    #   With two threads from same numa, where each pmd thread is  handling
+    #   one queue from two-queued ports. check whether rebalance is performed.
+    #   Scope is to check if rebalancing is not done on pmd that already
+    #   has same port but different rxq.
+    #   ( For now rebalance is allowed by switch, so follow)
+    #
+    #   order of rxqs based on cpu consumption: rxq2p2,rxq1p1,rxq1p3,
+    #                                           rxq1p2,rxq2p1
+    #   order of pmds for rebalance dryrun: pmd2,pmd1,pmd1,pmd2,pmd2
+    #
+    #   1. rxq1p1(pmd1) 66% -NOREB-> rxq1p1(pmd1)
+    #      rxq1p3(pmd1) 22%
+    #      rxq1p2(pmd1)  8%
+    #      rxq2p2(pmd2) 86% -NOREB-> rxq2p2(pmd2)
+    #      rxq2p1(pmd2)  4%
+    #
+    #   2. rxq2p2(pmd2) 86% -NOREB-> rxq2p2(pmd2)
+    #      rxq1p1(pmd1) 66% -NOREB-> rxq1p1(pmd1)
+    #      rxq1p3(pmd1) 22% -NOREB-> rxq1p3(pmd1)
+    #      rxq1p2(pmd1)  8% --+--+-> rxq1p2(reb_pmd2)
+    #      rxq2p1(pmd2)  4% -NOREB-> rxq2p1(pmd2)
+
+    #
+    @mock.patch('netcontrold.lib.util.open')
+    def test_two_1p2rxq_lnuma(self, mock_open):
+        mock_open.side_effect = [
+            mock.mock_open(read_data=_FX_CPU_INFO).return_value
+        ]
+
+        # set same numa for pmds
+        pmd1 = self.pmd_map[self.core1_id]
+        pmd2 = self.pmd_map[self.core2_id]
+        pmd1.numa_id = 0
+        pmd2.numa_id = 0
+
+        # create rxq
+        fx_2pmd_each_1p2rxq(self)
+
+        # we need an extra port to break retaining some ports.
+        dataif.make_dataif_port('virtport3')
+        port31 = pmd1.add_port('virtport3')
+        port31.numa_id = pmd1.numa_id
+        p3rxq1 = port31.add_rxq(0)
+        p3rxq1.pmd = pmd1
+
+        # update some cpu consumption for these rxqs.
+        # order of rxqs based on cpu consumption:
+        # rxq2p2,rxq1p1,rxq1p3,rxq1p2,rxq2p1
+        port11 = pmd1.find_port_by_name('virtport1')
+        port12 = pmd2.find_port_by_name('virtport1')
+        port21 = pmd1.find_port_by_name('virtport2')
+        port22 = pmd2.find_port_by_name('virtport2')
+        p1rxq1 = port11.find_rxq_by_id(0)
+        p1rxq2 = port12.find_rxq_by_id(1)
+        p2rxq1 = port21.find_rxq_by_id(0)
+        p2rxq2 = port22.find_rxq_by_id(1)
+
+        for i in range(0, config.ncd_samples_max):
+            p2rxq2.cpu_cyc[i] = (86 * (i + 1))
+            p1rxq1.cpu_cyc[i] = (66 * (i + 1))
+            p3rxq1.cpu_cyc[i] = (22 * (i + 1))
+            p2rxq1.cpu_cyc[i] = (8 * (i + 1))
+            p1rxq2.cpu_cyc[i] = (4 * (i + 1))
+
+        # update pmd load values
+        dataif.update_pmd_load(self.pmd_map)
+
+        # copy original pmd objects
+        pmd_map = copy.deepcopy(self.pmd_map)
+
+        # test dryrun
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
+
+        # validate results
+        # 1. all four rxqs be rebalanced.
+        self.assertEqual(n_reb_rxq, 1, "one rxq to be rebalanced")
+        # 2. each pmd is updated.
+        self.assertNotEqual(pmd_map[self.core1_id], pmd1)
+        self.assertNotEqual(pmd_map[self.core2_id], pmd2)
+        # 3. check rxq map after dryrun.
+        self.assertEqual(port11.rxq_rebalanced, {})
+        self.assertEqual(port22.rxq_rebalanced, {})
+        self.assertEqual(port31.rxq_rebalanced, {})
+        self.assertEqual(port21.rxq_rebalanced[0], pmd2.id)
+        self.assertEqual(port12.rxq_rebalanced, {})
+        # 4. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), 88)
+        self.assertEqual(dataif.pmd_load(pmd2), 98)
+
+        # del port object from pmd.
+        # TODO: create fx_ post deletion routine for clean up
+        pmd1.del_port('virtport1')
+        pmd1.del_port('virtport3')
         pmd2.del_port('virtport2')
 
     # Test case:
@@ -591,11 +769,11 @@ class TestRebalDryrun_TwoPmd(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 4, "four rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 2, "two rxqs to be rebalanced")
         # 2. each pmd is updated.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -658,18 +836,18 @@ class TestRebalDryrun_TwoPmd(TestCase):
             p1rxq.cpu_cyc[i] = 0
             p2rxq.cpu_cyc[i] = 0
             p3rxq.cpu_cyc[i] = 0
-            p4rxq.cpu_cyc[i] = (4000 + (400 * i))
+            p4rxq.cpu_cyc[i] = (98 * (i + 1))
 
         # fix cpu consumption for these pmds.
         for i in range(0, config.ncd_samples_max):
-            pmd1.idle_cpu_cyc[i] = (1 + (0 * i))
-            pmd1.proc_cpu_cyc[i] = (900 + (0 * i))
-            pmd1.rx_cyc[i] = (1000 + (0 * i))
+            pmd1.idle_cpu_cyc[i] = (100 * (i + 1))
+            pmd1.proc_cpu_cyc[i] = (0 + (0 * i))
+            pmd1.rx_cyc[i] = (0 * (i + 1))
 
         for i in range(0, config.ncd_samples_max):
-            pmd2.idle_cpu_cyc[i] = (1000 + (0 * i))
-            pmd2.proc_cpu_cyc[i] = (9500 + (400 * i))
-            pmd2.rx_cyc[i] = (10000 + (100 * i))
+            pmd2.idle_cpu_cyc[i] = (2 * (i + 1))
+            pmd2.proc_cpu_cyc[i] = (98 * (i + 1))
+            pmd2.rx_cyc[i] = (98 * (i + 1))
 
         # update pmd load values
         dataif.update_pmd_load(self.pmd_map)
@@ -678,11 +856,11 @@ class TestRebalDryrun_TwoPmd(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 4, "expected rebalance")
+        self.assertEqual(n_reb_rxq, 0, "expected no rebalance")
         # 2. each pmd is not updated.
         self.assertEqual(pmd_map[self.core1_id], pmd1)
         self.assertEqual(pmd_map[self.core2_id], pmd2)
@@ -731,14 +909,14 @@ class TestRebalDryrun_TwoPmd(TestCase):
 
         # fix cpu consumption for these pmds.
         for i in range(0, config.ncd_samples_max):
-            pmd1.idle_cpu_cyc[i] = (1 + (0 * i))
-            pmd1.proc_cpu_cyc[i] = (6000 + ((400 + 200) * i))
-            pmd1.rx_cyc[i] = (1000 + (100 * i))
+            pmd1.idle_cpu_cyc[i] = (4 * (i + 1))
+            pmd1.proc_cpu_cyc[i] = (96 * (i + 1))
+            pmd1.rx_cyc[i] = (96 * (i + 1))
 
         for i in range(0, config.ncd_samples_max):
-            pmd2.idle_cpu_cyc[i] = (1000 + (0 * i))
-            pmd2.proc_cpu_cyc[i] = (9500 + ((300 + 100) * i))
-            pmd2.rx_cyc[i] = (10000 + (100 * i))
+            pmd1.idle_cpu_cyc[i] = (10 * (i + 1))
+            pmd1.proc_cpu_cyc[i] = (90 * (i + 1))
+            pmd1.rx_cyc[i] = (90 * (i + 1))
 
         # update pmd load values
         dataif.update_pmd_load(self.pmd_map)
@@ -747,7 +925,7 @@ class TestRebalDryrun_TwoPmd(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         port1 = pmd1.find_port_by_name('virtport1')
@@ -755,7 +933,7 @@ class TestRebalDryrun_TwoPmd(TestCase):
         port3 = pmd1.find_port_by_name('virtport3')
         port4 = pmd2.find_port_by_name('virtport4')
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 0, "skip rebalance")
+        self.assertEqual(n_reb_rxq, -1, "skip rebalance")
         # 2. each pmd is not updated.
         self.assertEqual(pmd_map[self.core1_id], pmd1)
         self.assertEqual(pmd_map[self.core2_id], pmd2)
@@ -844,14 +1022,14 @@ def fx_4pmd_each_2rxq(testobj):
     # add some cpu consumption for these rxqs.
     # order of rxqs based on cpu consumption: rxqp1,rxqp2,..rxqp8
     for i in range(0, config.ncd_samples_max):
-        fx_p1rxq.cpu_cyc[i] = (8000 + (800 * i))
-        fx_p2rxq.cpu_cyc[i] = (7000 + (700 * i))
-        fx_p3rxq.cpu_cyc[i] = (6000 + (600 * i))
-        fx_p4rxq.cpu_cyc[i] = (5000 + (500 * i))
-        fx_p5rxq.cpu_cyc[i] = (4000 + (400 * i))
-        fx_p6rxq.cpu_cyc[i] = (3000 + (300 * i))
-        fx_p7rxq.cpu_cyc[i] = (2000 + (200 * i))
-        fx_p8rxq.cpu_cyc[i] = (1000 + (100 * i))
+        fx_p1rxq.cpu_cyc[i] = (76 * (i + 1))
+        fx_p2rxq.cpu_cyc[i] = (75 * (i + 1))
+        fx_p3rxq.cpu_cyc[i] = (74 * (i + 1))
+        fx_p4rxq.cpu_cyc[i] = (73 * (i + 1))
+        fx_p5rxq.cpu_cyc[i] = (20 * (i + 1))
+        fx_p6rxq.cpu_cyc[i] = (15 * (i + 1))
+        fx_p7rxq.cpu_cyc[i] = (11 * (i + 1))
+        fx_p8rxq.cpu_cyc[i] = (7 * (i + 1))
 
 
 class TestRebalDryrun_FourPmd(TestCase):
@@ -859,6 +1037,7 @@ class TestRebalDryrun_FourPmd(TestCase):
     Test rebalance for one or more rxq handled by four pmds.
     """
 
+    rebalance_dryrun = dataif.rebalance_dryrun_by_cyc
     pmd_map = dict()
     core1_id = 0
     core2_id = 1
@@ -888,24 +1067,24 @@ class TestRebalDryrun_FourPmd(TestCase):
 
         # add some cpu consumption for these pmds.
         for i in range(0, config.ncd_samples_max):
-            fx_pmd1.idle_cpu_cyc[i] = (1 + (1 * i))
-            fx_pmd1.proc_cpu_cyc[i] = (900 + (90 * i))
-            fx_pmd1.rx_cyc[i] = (1000 + (100 * i))
+            fx_pmd1.idle_cpu_cyc[i] = (4 * (i + 1))
+            fx_pmd1.proc_cpu_cyc[i] = (96 * (i + 1))
+            fx_pmd1.rx_cyc[i] = (96 * (i + 1))
 
         for i in range(0, config.ncd_samples_max):
-            fx_pmd2.idle_cpu_cyc[i] = (1000 + (100 * i))
-            fx_pmd2.proc_cpu_cyc[i] = (9500 + (950 * i))
-            fx_pmd2.rx_cyc[i] = (10000 + (100 * i))
+            fx_pmd2.idle_cpu_cyc[i] = (10 * (i + 1))
+            fx_pmd2.proc_cpu_cyc[i] = (90 * (i + 1))
+            fx_pmd2.rx_cyc[i] = (90 * (i + 1))
 
         for i in range(0, config.ncd_samples_max):
-            fx_pmd3.idle_cpu_cyc[i] = (2000 + (200 * i))
-            fx_pmd3.proc_cpu_cyc[i] = (29500 + (2950 * i))
-            fx_pmd3.rx_cyc[i] = (20000 + (200 * i))
+            fx_pmd3.idle_cpu_cyc[i] = (15 * (i + 1))
+            fx_pmd3.proc_cpu_cyc[i] = (85 * (i + 1))
+            fx_pmd3.rx_cyc[i] = (85 * (i + 1))
 
         for i in range(0, config.ncd_samples_max):
-            fx_pmd4.idle_cpu_cyc[i] = (3000 + (100 * i))
-            fx_pmd4.proc_cpu_cyc[i] = (39500 + (3950 * i))
-            fx_pmd4.rx_cyc[i] = (30000 + (100 * i))
+            fx_pmd4.idle_cpu_cyc[i] = (20 * (i + 1))
+            fx_pmd4.proc_cpu_cyc[i] = (80 * (i + 1))
+            fx_pmd4.rx_cyc[i] = (80 * (i + 1))
 
         self.pmd_map[self.core1_id] = fx_pmd1
         self.pmd_map[self.core2_id] = fx_pmd2
@@ -966,11 +1145,11 @@ class TestRebalDryrun_FourPmd(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 8, "eight rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 4, "four rxqs to be rebalanced")
         # 2. each pmd is updated.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -1058,12 +1237,12 @@ def fx_2pmd_one_empty_per_numa(testobj):
     # order of rxqs based on cpu consumption: rxqp2,rxqp1,rxqp3,
     #                                         rxqp5,rxqp4,rxqp6
     for i in range(0, config.ncd_samples_max):
-        fx_p2rxq.cpu_cyc[i] = (6000 + (400 * i))
-        fx_p1rxq.cpu_cyc[i] = (5000 + (400 * i))
-        fx_p3rxq.cpu_cyc[i] = (4000 + (400 * i))
-        fx_p5rxq.cpu_cyc[i] = (3000 + (300 * i))
-        fx_p4rxq.cpu_cyc[i] = (2000 + (200 * i))
-        fx_p6rxq.cpu_cyc[i] = (1000 + (100 * i))
+        fx_p2rxq.cpu_cyc[i] = (66 * (i + 1))
+        fx_p1rxq.cpu_cyc[i] = (20 * (i + 1))
+        fx_p3rxq.cpu_cyc[i] = (10 * (i + 1))
+        fx_p5rxq.cpu_cyc[i] = (66 * (i + 1))
+        fx_p4rxq.cpu_cyc[i] = (20 * (i + 1))
+        fx_p6rxq.cpu_cyc[i] = (10 * (i + 1))
 
 
 class TestRebalDryrun_FourPmd_Numa(TestCase):
@@ -1071,6 +1250,7 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
     Test rebalance for one or more rxq handled by four pmds.
     """
 
+    rebalance_dryrun = dataif.rebalance_dryrun_by_cyc
     pmd_map = dict()
     core1_id = 0
     core2_id = 1
@@ -1100,24 +1280,24 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
 
         # add some cpu consumption for these pmds.
         for i in range(0, config.ncd_samples_max):
-            fx_pmd1.idle_cpu_cyc[i] = (1 + (1 * i))
-            fx_pmd1.proc_cpu_cyc[i] = (900 + (90 * i))
-            fx_pmd1.rx_cyc[i] = (1000 + (100 * i))
+            fx_pmd1.idle_cpu_cyc[i] = (4 * (i + 1))
+            fx_pmd1.proc_cpu_cyc[i] = (96 * (i + 1))
+            fx_pmd1.rx_cyc[i] = (96 * (i + 1))
 
         for i in range(0, config.ncd_samples_max):
-            fx_pmd2.idle_cpu_cyc[i] = (1000 + (100 * i))
-            fx_pmd2.proc_cpu_cyc[i] = (9500 + (950 * i))
-            fx_pmd2.rx_cyc[i] = (10000 + (100 * i))
+            fx_pmd2.idle_cpu_cyc[i] = (10 * (i + 1))
+            fx_pmd2.proc_cpu_cyc[i] = (90 * (i + 1))
+            fx_pmd2.rx_cyc[i] = (90 * (i + 1))
 
         for i in range(0, config.ncd_samples_max):
-            fx_pmd3.idle_cpu_cyc[i] = (2000 + (200 * i))
-            fx_pmd3.proc_cpu_cyc[i] = (29500 + (2950 * i))
-            fx_pmd3.rx_cyc[i] = (20000 + (200 * i))
+            fx_pmd3.idle_cpu_cyc[i] = (15 * (i + 1))
+            fx_pmd3.proc_cpu_cyc[i] = (85 * (i + 1))
+            fx_pmd3.rx_cyc[i] = (85 * (i + 1))
 
         for i in range(0, config.ncd_samples_max):
-            fx_pmd4.idle_cpu_cyc[i] = (3000 + (100 * i))
-            fx_pmd4.proc_cpu_cyc[i] = (39500 + (3950 * i))
-            fx_pmd4.rx_cyc[i] = (30000 + (100 * i))
+            fx_pmd4.idle_cpu_cyc[i] = (20 * (i + 1))
+            fx_pmd4.proc_cpu_cyc[i] = (80 * (i + 1))
+            fx_pmd4.rx_cyc[i] = (80 * (i + 1))
 
         self.pmd_map[self.core1_id] = fx_pmd1
         self.pmd_map[self.core2_id] = fx_pmd2
@@ -1179,11 +1359,11 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         # 1. all two rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 4, "four rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 2, "two rxqs to be rebalanced")
         # 2. each pmd is updated.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -1286,11 +1466,11 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
 
         # test dryrun
-        n_reb_rxq = dataif.rebalance_dryrun_by_cyc(self.pmd_map)
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
 
         # validate results
         # 1. two rxqs be rebalanced in numa 1.
-        self.assertEqual(n_reb_rxq, 3, "three rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 2, "two rxqs to be rebalanced")
         # 2. each pmd is updated, except numa 2.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -1332,228 +1512,22 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
 # remain same.
 
 
-class TestRebalDryrunIQ_OnePmd(TestCase):
+class TestRebalDryrunIQ_OnePmd(TestRebalDryrun_OnePmd):
     """
     Test rebalance for one or more rxq handled by one pmd.
     """
 
+    rebalance_dryrun = dataif.rebalance_dryrun_by_iq
     pmd_map = dict()
     core_id = 0
 
-    # setup test environment
     def setUp(self):
-        util.Memoize.forgot = True
+        super(TestRebalDryrunIQ_OnePmd, self).setUp()
 
-        # turn off limited info shown in assert failure for pmd object.
-        self.maxDiff = None
-
-        dataif.Context.nlog = NlogNoop()
-
-        # create one pmd object.
-        fx_pmd = dataif.Dataif_Pmd(self.core_id)
-
-        # let it be in numa 0.
-        fx_pmd.numa_id = 0
-
-        # add some cpu consumption for this pmd.
-        for i in range(0, config.ncd_samples_max):
-            fx_pmd.idle_cpu_cyc[i] = (1000 + (100 * i))
-            fx_pmd.proc_cpu_cyc[i] = (5000 + (500 * i))
-            fx_pmd.rx_cyc[i] = (10000 + (100 * i))
-
-        self.pmd_map[self.core_id] = fx_pmd
-        return
-
-    # Test case:
-    #   With one pmd thread handling only one single-queue port, check whether
-    #   rebalance is skipped.
     def test_one_rxq(self):
-        # retrieve pmd object.
-        pmd = self.pmd_map[self.core_id]
+        super(TestRebalDryrunIQ_OnePmd, self).test_one_rxq()
 
-        # one dummy port is required for this test.
-        port_name = 'virtport'
-
-        # create port class of name 'virtport'.
-        dataif.make_dataif_port(port_name)
-
-        # add port object into pmd.
-        fx_port = pmd.add_port(port_name)
-        fx_port.numa_id = pmd.numa_id
-
-        # add a dummy rxq into port.
-        fx_rxq = fx_port.add_rxq(0)
-
-        # add some cpu consumption for this rxq.
-        for i in range(0, config.ncd_samples_max):
-            fx_rxq.cpu_cyc[i] = (1000 + (100 * i))
-
-        n_reb_rxq = dataif.rebalance_dryrun_by_iq(self.pmd_map)
-
-        self.assertEqual(n_reb_rxq, 0)
-
-        # del port object from pmd.
-        pmd.del_port(port_name)
-
-    # Test case:
-    #   With one pmd thread handling few one single-queue ports, check whether
-    #   rebalance is skipped.
     def test_many_rxq(self):
-        # retrieve pmd object.
-        pmd = self.pmd_map[self.core_id]
-
-        # one few dummy ports required for this test.
-        for port_name in ('virtport1', 'virtport2', 'virtport3'):
-
-            # create port class of name 'virtport'.
-            dataif.make_dataif_port(port_name)
-
-            # add port object into pmd.
-            fx_port = pmd.add_port(port_name)
-            fx_port.numa_id = pmd.numa_id
-
-            # add a dummy rxq into port.
-            fx_rxq = fx_port.add_rxq(0)
-
-            # add some cpu consumption for this rxq.
-            for i in range(0, config.ncd_samples_max):
-                fx_rxq.cpu_cyc[i] = (1000 + (100 * i))
-
-        n_reb_rxq = dataif.rebalance_dryrun_by_iq(self.pmd_map)
-
-        self.assertEqual(n_reb_rxq, 0)
-
-        for port_name in ('virtport1', 'virtport2', 'virtport3'):
-            pmd.del_port(port_name)
+        super(TestRebalDryrunIQ_OnePmd, self).test_many_rxq()
 
 
-class TestRebalDryrunIQ_TwoPmd(TestCase):
-    """
-    Test rebalance for one or more rxq handled by twp pmds.
-    """
-
-    pmd_map = dict()
-    core1_id = 0
-    core2_id = 1
-
-    # setup test environment
-    def setUp(self):
-        util.Memoize.forgot = True
-
-        # turn off limited info shown in assert failure for pmd object.
-        self.maxDiff = None
-
-        dataif.Context.nlog = NlogNoop()
-
-        # create one pmd object.
-        fx_pmd1 = dataif.Dataif_Pmd(self.core1_id)
-        fx_pmd2 = dataif.Dataif_Pmd(self.core2_id)
-
-        # let it be in numa 0.
-        fx_pmd1.numa_id = 0
-        fx_pmd2.numa_id = 0
-
-        # add some cpu consumption for these pmds.
-        for i in range(0, config.ncd_samples_max):
-            fx_pmd1.idle_cpu_cyc[i] = (1 + (1 * i))
-            fx_pmd1.proc_cpu_cyc[i] = (900 + (90 * i))
-            fx_pmd1.rx_cyc[i] = (1000 + (100 * i))
-
-        for i in range(0, config.ncd_samples_max):
-            fx_pmd2.idle_cpu_cyc[i] = (1000 + (100 * i))
-            fx_pmd2.proc_cpu_cyc[i] = (9500 + (950 * i))
-            fx_pmd2.rx_cyc[i] = (10000 + (100 * i))
-
-        self.pmd_map[self.core1_id] = fx_pmd1
-        self.pmd_map[self.core2_id] = fx_pmd2
-        return
-
-    # Test case:
-    #   With two threads from same numa, each handling only one single-queued
-    #   port, check whether rebalance is skipped.
-    def test_one_rxq_lnuma(self):
-        # set different numa for pmds
-        pmd1 = self.pmd_map[self.core1_id]
-        pmd2 = self.pmd_map[self.core2_id]
-
-        pmd1.numa_id = 0
-        pmd2.numa_id = 0
-
-        fx_2pmd_each_1rxq(self)
-
-        dataif.update_pmd_load(self.pmd_map)
-        pmd_map = copy.deepcopy(self.pmd_map)
-        n_reb_rxq = dataif.rebalance_dryrun_by_iq(self.pmd_map)
-
-        self.assertEqual(n_reb_rxq, 0, "no rebalance expected")
-        self.assertEqual(
-            (pmd_map[self.core1_id] == self.pmd_map[self.core1_id]), True)
-        self.assertEqual(
-            (pmd_map[self.core2_id] == self.pmd_map[self.core2_id]), True)
-
-        # del port object from pmd.
-        # TODO: create fx_ post deletion routine for clean up
-        pmd1.del_port('virtport1')
-        pmd2.del_port('virtport2')
-
-    # Test case:
-    #   With two threads from same numa, where one pmd thread is handling
-    #   two single-queued ports, while the other is doing nothing,
-    #   check whether rebalance is performed.
-    @mock.patch('netcontrold.lib.util.open')
-    def test_two_rxq_lnuma(self, mock_open):
-        mock_open.side_effect = [
-            mock.mock_open(read_data=_FX_CPU_INFO).return_value
-        ]
-
-        # set different numa for pmds
-        pmd1 = self.pmd_map[self.core1_id]
-        pmd2 = self.pmd_map[self.core2_id]
-
-        pmd1.numa_id = 0
-        pmd2.numa_id = 0
-
-        fx_2pmd_one_empty(self)
-
-        dataif.update_pmd_load(self.pmd_map)
-        pmd_map = copy.deepcopy(self.pmd_map)
-        n_reb_rxq = dataif.rebalance_dryrun_by_iq(self.pmd_map)
-
-        self.assertEqual(n_reb_rxq, 1, "one rxq to be rebalanced")
-        self.assertEqual(
-            (pmd_map[self.core1_id] != self.pmd_map[self.core1_id]), True)
-        self.assertEqual(
-            (pmd_map[self.core2_id] != self.pmd_map[self.core2_id]), True)
-
-        # del port object from pmd.
-        # TODO: create fx_ post deletion routine for clean up
-        pmd1.del_port('virtport1')
-        pmd1.del_port('virtport2')
-
-    # Test case:
-    #   With two threads from different numa, each handling one single-queued
-    #   port, check rebalance is skipped.
-    def test_one_rxq_rnuma(self):
-        # set different numa for pmds
-        pmd1 = self.pmd_map[self.core1_id]
-        pmd2 = self.pmd_map[self.core2_id]
-
-        pmd1.numa_id = 0
-        pmd2.numa_id = 1
-
-        fx_2pmd_each_1rxq(self)
-
-        dataif.update_pmd_load(self.pmd_map)
-        pmd_map = copy.deepcopy(self.pmd_map)
-        n_reb_rxq = dataif.rebalance_dryrun_by_iq(self.pmd_map)
-
-        self.assertEqual(n_reb_rxq, 0, "no rebalance expected")
-        self.assertEqual(
-            (pmd_map[self.core1_id] == self.pmd_map[self.core1_id]), True)
-        self.assertEqual(
-            (pmd_map[self.core2_id] == self.pmd_map[self.core2_id]), True)
-
-        # del port object from pmd.
-        # TODO: create fx_ post deletion routine for clean up
-        pmd1.del_port('virtport1')
-        pmd2.del_port('virtport2')

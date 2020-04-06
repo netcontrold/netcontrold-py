@@ -35,7 +35,7 @@ ncd_pmd_core_threshold = 95
 
 # Minimum interval for vswitch to reach steady state, following
 # pmd reconfiguration.
-ncd_vsw_wait_min = 10
+ncd_vsw_wait_min = 0
 
 # Store location for the logs created and its maximum size.
 ncd_log_file = "/var/log/netcontrold/ncd.log"
