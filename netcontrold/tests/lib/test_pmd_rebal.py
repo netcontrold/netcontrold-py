@@ -1506,11 +1506,6 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
         pmd1.del_port('virtport1')
         pmd1.del_port('virtport2')
 
-# TODO:
-# We could reuse cycles based test as above for testing any rebalance
-# logic, meaning except for desired dryrun results, setup and test inputs
-# remain same.
-
 
 class TestRebalDryrunIQ_OnePmd(TestRebalDryrun_OnePmd):
     """
@@ -1521,13 +1516,59 @@ class TestRebalDryrunIQ_OnePmd(TestRebalDryrun_OnePmd):
     pmd_map = dict()
     core_id = 0
 
-    def setUp(self):
-        super(TestRebalDryrunIQ_OnePmd, self).setUp()
 
-    def test_one_rxq(self):
-        super(TestRebalDryrunIQ_OnePmd, self).test_one_rxq()
+class TestRebalDryrunIQ_TwoPmd(TestRebalDryrun_TwoPmd):
+    """
+    Test rebalance for one or more rxq handled by two pmds.
+    """
 
-    def test_many_rxq(self):
-        super(TestRebalDryrunIQ_OnePmd, self).test_many_rxq()
+    rebalance_dryrun = dataif.rebalance_dryrun_by_iq
+    pmd_map = dict()
+    core1_id = 0
+    core2_id = 1
+
+    @pytest.mark.skip(reason="not applicable")
+    def test_four_1rxq_lnuma(self, mock_open):
+        ...
+
+    @pytest.mark.skip(reason="not applicable")
+    def test_four_1rxq_skip_lnuma(self, mock_open):
+        ...
+
+    @pytest.mark.skip(reason="not applicable")
+    def test_two_1p2rxq_lnuma(self, mock_open):
+        ...
+
+    @pytest.mark.skip(reason="not applicable")
+    def test_two_1p2rxq_lnuma_norb(self, mock_open):
+        ...
 
 
+class TestRebalDryrunIQ_FourPmd(TestRebalDryrun_FourPmd):
+    """
+    Test rebalance for one or more rxq handled by four pmds.
+    """
+
+    rebalance_dryrun = dataif.rebalance_dryrun_by_iq
+    pmd_map = dict()
+    core1_id = 0
+    core2_id = 1
+    core3_id = 4
+    core4_id = 5
+
+    @pytest.mark.skip(reason="not applicable")
+    def test_eight_1rxq_lnuma(self, mock_open):
+        ...
+
+
+class TestRebalDryrunIQ_FourPmd_Numa(TestRebalDryrun_FourPmd_Numa):
+    """
+    Test rebalance for one or more rxq handled by four pmds.
+    """
+
+    rebalance_dryrun = dataif.rebalance_dryrun_by_cyc
+    pmd_map = dict()
+    core1_id = 0
+    core2_id = 1
+    core3_id = 6
+    core4_id = 7

@@ -1060,7 +1060,7 @@ def rebalance_dryrun_by_iq(pmd_map):
     # Sort pmds in pmd_map based on the rxq load, in descending order.
     # Pick the pmd which is more loaded from one end of the list.
     pmd_load_list = sorted(
-        pmd_map.values(), key=lambda o: o.pmd_load, reverse=True)
+        pmd_map.values(), key=lambda o: o.pmd_load)
 
     # Split list into busy and less loaded.
     bpmd_load_list = []
