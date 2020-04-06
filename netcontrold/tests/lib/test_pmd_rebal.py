@@ -204,7 +204,7 @@ class TestRebalDryrun_OnePmd(TestCase):
 
         # validate results
         # 1. no rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 0)
+        self.assertEqual(n_reb_rxq, -1)
         # 2. check pmd load
         self.assertEqual(dataif.pmd_load(pmd), 96)
 
@@ -241,7 +241,7 @@ class TestRebalDryrun_OnePmd(TestCase):
 
         # validate results
         # 1. no rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 0)
+        self.assertEqual(n_reb_rxq, -1)
         # 2. check pmd load
         self.assertEqual(dataif.pmd_load(pmd), 96)
 
@@ -486,7 +486,7 @@ class TestRebalDryrun_TwoPmd(TestCase):
 
         # validate results
         # 1. all two rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 0, "no rebalance expected")
+        self.assertEqual(n_reb_rxq, -1, "no rebalance expected")
         # 2. each pmd is not updated.
         self.assertEqual(pmd_map[self.core1_id], pmd1)
         self.assertEqual(pmd_map[self.core2_id], pmd2)
@@ -547,7 +547,7 @@ class TestRebalDryrun_TwoPmd(TestCase):
 
         # validate results
         # 1. all two rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 2, "two rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 1, "one rxq to be rebalanced")
         # 2. each pmd is updated.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -607,7 +607,7 @@ class TestRebalDryrun_TwoPmd(TestCase):
 
         # validate results
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 4, "four rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 0, "no rebalance expected")
         # 2. each pmd is updated.
         self.assertEqual(pmd_map[self.core1_id], pmd1)
         self.assertEqual(pmd_map[self.core2_id], pmd2)
@@ -705,7 +705,7 @@ class TestRebalDryrun_TwoPmd(TestCase):
 
         # validate results
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 5, "five rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 1, "one rxq to be rebalanced")
         # 2. each pmd is updated.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -770,7 +770,7 @@ class TestRebalDryrun_TwoPmd(TestCase):
 
         # validate results
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 4, "four rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 2, "two rxqs to be rebalanced")
         # 2. each pmd is updated.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -857,7 +857,7 @@ class TestRebalDryrun_TwoPmd(TestCase):
 
         # validate results
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 4, "expected rebalance")
+        self.assertEqual(n_reb_rxq, 0, "expected no rebalance")
         # 2. each pmd is not updated.
         self.assertEqual(pmd_map[self.core1_id], pmd1)
         self.assertEqual(pmd_map[self.core2_id], pmd2)
@@ -930,7 +930,7 @@ class TestRebalDryrun_TwoPmd(TestCase):
         port3 = pmd1.find_port_by_name('virtport3')
         port4 = pmd2.find_port_by_name('virtport4')
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 0, "skip rebalance")
+        self.assertEqual(n_reb_rxq, -1, "skip rebalance")
         # 2. each pmd is not updated.
         self.assertEqual(pmd_map[self.core1_id], pmd1)
         self.assertEqual(pmd_map[self.core2_id], pmd2)
@@ -1145,7 +1145,7 @@ class TestRebalDryrun_FourPmd(TestCase):
 
         # validate results
         # 1. all four rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 8, "eight rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 4, "four rxqs to be rebalanced")
         # 2. each pmd is updated.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -1358,7 +1358,7 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
 
         # validate results
         # 1. all two rxqs be rebalanced.
-        self.assertEqual(n_reb_rxq, 4, "four rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 2, "two rxqs to be rebalanced")
         # 2. each pmd is updated.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -1465,7 +1465,7 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
 
         # validate results
         # 1. two rxqs be rebalanced in numa 1.
-        self.assertEqual(n_reb_rxq, 3, "three rxqs to be rebalanced")
+        self.assertEqual(n_reb_rxq, 2, "two rxqs to be rebalanced")
         # 2. each pmd is updated, except numa 2.
         self.assertNotEqual(pmd_map[self.core1_id], pmd1)
         self.assertNotEqual(pmd_map[self.core2_id], pmd2)
@@ -1565,7 +1565,7 @@ class TestRebalDryrunIQ_OnePmd(TestCase):
 
         n_reb_rxq = dataif.rebalance_dryrun_by_iq(self.pmd_map)
 
-        self.assertEqual(n_reb_rxq, 0)
+        self.assertEqual(n_reb_rxq, -1)
 
         # del port object from pmd.
         pmd.del_port(port_name)
@@ -1596,7 +1596,7 @@ class TestRebalDryrunIQ_OnePmd(TestCase):
 
         n_reb_rxq = dataif.rebalance_dryrun_by_iq(self.pmd_map)
 
-        self.assertEqual(n_reb_rxq, 0)
+        self.assertEqual(n_reb_rxq, -1)
 
         for port_name in ('virtport1', 'virtport2', 'virtport3'):
             pmd.del_port(port_name)
@@ -1660,7 +1660,7 @@ class TestRebalDryrunIQ_TwoPmd(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
         n_reb_rxq = dataif.rebalance_dryrun_by_iq(self.pmd_map)
 
-        self.assertEqual(n_reb_rxq, 0, "no rebalance expected")
+        self.assertEqual(n_reb_rxq, -1, "no rebalance expected")
         self.assertEqual(
             (pmd_map[self.core1_id] == self.pmd_map[self.core1_id]), True)
         self.assertEqual(
@@ -1722,7 +1722,7 @@ class TestRebalDryrunIQ_TwoPmd(TestCase):
         pmd_map = copy.deepcopy(self.pmd_map)
         n_reb_rxq = dataif.rebalance_dryrun_by_iq(self.pmd_map)
 
-        self.assertEqual(n_reb_rxq, 0, "no rebalance expected")
+        self.assertEqual(n_reb_rxq, -1, "no rebalance expected")
         self.assertEqual(
             (pmd_map[self.core1_id] == self.pmd_map[self.core1_id]), True)
         self.assertEqual(
