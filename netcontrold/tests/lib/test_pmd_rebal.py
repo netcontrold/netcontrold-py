@@ -173,6 +173,7 @@ class TestRebalDryrun_OnePmd(TestCase):
             fx_pmd.proc_cpu_cyc[i] = (96 * (i + 1))
             fx_pmd.rx_cyc[i] = (96 * (i + 1))
 
+        fx_pmd.cyc_idx = config.ncd_samples_max - 1
         self.pmd_map[self.core_id] = fx_pmd
         return
 
@@ -198,8 +199,8 @@ class TestRebalDryrun_OnePmd(TestCase):
 
         # add some cpu consumption for this rxq.
         for i in range(0, config.ncd_samples_max):
-            fx_rxq.cpu_cyc[i] = (96 * (i + 1))
-            fx_rxq.rx_cyc[i] = (96 * (i + 1))
+            fx_rxq.cpu_cyc[i] = 96
+            fx_rxq.rx_cyc[i] = 96
 
         # test dryrun
         n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
@@ -208,7 +209,7 @@ class TestRebalDryrun_OnePmd(TestCase):
         # 1. no rxqs be rebalanced.
         self.assertEqual(n_reb_rxq, -1)
         # 2. check pmd load
-        self.assertEqual(dataif.pmd_load(pmd), 96)
+        self.assertEqual(dataif.pmd_load(pmd), 96.0)
 
         # del port object from pmd.
         pmd.del_port(port_name)
@@ -235,8 +236,8 @@ class TestRebalDryrun_OnePmd(TestCase):
 
             # add some cpu consumption for this rxq.
             for i in range(0, config.ncd_samples_max):
-                fx_rxq.cpu_cyc[i] = (32 * (i + 1))
-                fx_rxq.rx_cyc[i] = (32 * (i + 1))
+                fx_rxq.cpu_cyc[i] = 32
+                fx_rxq.rx_cyc[i] = 32
 
         # test dryrun
         n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
@@ -245,7 +246,7 @@ class TestRebalDryrun_OnePmd(TestCase):
         # 1. no rxqs be rebalanced.
         self.assertEqual(n_reb_rxq, -1)
         # 2. check pmd load
-        self.assertEqual(dataif.pmd_load(pmd), 96)
+        self.assertEqual(dataif.pmd_load(pmd), 96.0)
 
         # del port object from pmd.
         for port_name in ('virtport1', 'virtport2', 'virtport3'):
@@ -281,10 +282,10 @@ def fx_2pmd_each_1rxq(testobj):
 
     # add some cpu consumption for these rxqs.
     for i in range(0, config.ncd_samples_max):
-        fx_p1rxq.cpu_cyc[i] = (96 * (i + 1))
-        fx_p1rxq.rx_cyc[i] = (96 * (i + 1))
-        fx_p2rxq.cpu_cyc[i] = (90 * (i + 1))
-        fx_p2rxq.rx_cyc[i] = (90 * (i + 1))
+        fx_p1rxq.cpu_cyc[i] = 96
+        fx_p1rxq.rx_cyc[i] = 96
+        fx_p2rxq.cpu_cyc[i] = 90
+        fx_p2rxq.rx_cyc[i] = 90
 
 
 # Fixture:
@@ -318,10 +319,10 @@ def fx_2pmd_one_empty(testobj):
 
     # add some cpu consumption for these rxqs.
     for i in range(0, config.ncd_samples_max):
-        fx_p1rxq.cpu_cyc[i] = (6 * (i + 1))
-        fx_p1rxq.rx_cyc[i] = (6 * (i + 1))
-        fx_p2rxq.cpu_cyc[i] = (90 * (i + 1))
-        fx_p2rxq.rx_cyc[i] = (90 * (i + 1))
+        fx_p1rxq.cpu_cyc[i] = 6
+        fx_p1rxq.rx_cyc[i] = 6
+        fx_p2rxq.cpu_cyc[i] = 90
+        fx_p2rxq.rx_cyc[i] = 90
 
 
 # Fixture:
@@ -367,14 +368,14 @@ def fx_2pmd_each_2rxq(testobj):
     # add some cpu consumption for these rxqs.
     # order of rxqs based on cpu consumption: rxqp1,rxqp2,rxqp3,rxqp4
     for i in range(0, config.ncd_samples_max):
-        fx_p1rxq.cpu_cyc[i] = (70 * (i + 1))
-        fx_p1rxq.rx_cyc[i] = (6 * (i + 1))
-        fx_p2rxq.cpu_cyc[i] = (65 * (i + 1))
-        fx_p2rxq.rx_cyc[i] = (6 * (i + 1))
-        fx_p3rxq.cpu_cyc[i] = (26 * (i + 1))
-        fx_p3rxq.rx_cyc[i] = (6 * (i + 1))
-        fx_p4rxq.cpu_cyc[i] = (25 * (i + 1))
-        fx_p4rxq.rx_cyc[i] = (6 * (i + 1))
+        fx_p1rxq.cpu_cyc[i] = 70
+        fx_p1rxq.rx_cyc[i] = 70
+        fx_p2rxq.cpu_cyc[i] = 65
+        fx_p2rxq.rx_cyc[i] = 65
+        fx_p3rxq.cpu_cyc[i] = 26
+        fx_p3rxq.rx_cyc[i] = 26
+        fx_p4rxq.cpu_cyc[i] = 25
+        fx_p4rxq.rx_cyc[i] = 25
 
 # Fixture:
 #   Create two pmd thread objects where in, two queued ports split
@@ -417,10 +418,14 @@ def fx_2pmd_each_1p2rxq(testobj):
     # add some cpu consumption for these rxqs.
     # order of rxqs based on cpu consumption: rxq1p1,rxq2p2,rxq1p2,rxq2p1
     for i in range(0, config.ncd_samples_max):
-        fx_p1rxq1.cpu_cyc[i] = (90 * (i + 1))
-        fx_p2rxq2.cpu_cyc[i] = (60 * (i + 1))
-        fx_p1rxq2.cpu_cyc[i] = (30 * (i + 1))
-        fx_p2rxq1.cpu_cyc[i] = (6 * (i + 1))
+        fx_p1rxq1.cpu_cyc[i] = 90
+        fx_p1rxq1.rx_cyc[i] = 90
+        fx_p2rxq2.cpu_cyc[i] = 60
+        fx_p2rxq2.rx_cyc[i] = 60
+        fx_p1rxq2.cpu_cyc[i] = 30
+        fx_p1rxq2.rx_cyc[i] = 30
+        fx_p2rxq1.cpu_cyc[i] = 6
+        fx_p2rxq1.rx_cyc[i] = 6
 
 
 class TestRebalDryrun_TwoPmd(TestCase):
@@ -454,12 +459,16 @@ class TestRebalDryrun_TwoPmd(TestCase):
         for i in range(0, config.ncd_samples_max):
             fx_pmd1.idle_cpu_cyc[i] = (4 * (i + 1))
             fx_pmd1.proc_cpu_cyc[i] = (96 * (i + 1))
-            fx_pmd1.rx_cyc[i] = (100 * (i + 1))
+            fx_pmd1.rx_cyc[i] = (96 * (i + 1))
+
+        fx_pmd1.cyc_idx = config.ncd_samples_max - 1
 
         for i in range(0, config.ncd_samples_max):
             fx_pmd2.idle_cpu_cyc[i] = (10 * (i + 1))
             fx_pmd2.proc_cpu_cyc[i] = (90 * (i + 1))
-            fx_pmd2.rx_cyc[i] = (100 * (i + 1))
+            fx_pmd2.rx_cyc[i] = (90 * (i + 1))
+
+        fx_pmd2.cyc_idx = config.ncd_samples_max - 1
 
         self.pmd_map[self.core1_id] = fx_pmd1
         self.pmd_map[self.core2_id] = fx_pmd2
@@ -494,8 +503,8 @@ class TestRebalDryrun_TwoPmd(TestCase):
         self.assertEqual(pmd_map[self.core1_id], pmd1)
         self.assertEqual(pmd_map[self.core2_id], pmd2)
         # 3. check pmd load
-        self.assertEqual(dataif.pmd_load(pmd1), 96)
-        self.assertEqual(dataif.pmd_load(pmd2), 90)
+        self.assertEqual(dataif.pmd_load(pmd1), 96.0)
+        self.assertEqual(dataif.pmd_load(pmd2), 90.0)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -563,8 +572,8 @@ class TestRebalDryrun_TwoPmd(TestCase):
         # 3.a rxqp1 moves into pmd2
         self.assertEqual(port1.rxq_rebalanced[0], pmd2.id)
         # 4. check pmd load
-        self.assertEqual(dataif.pmd_load(pmd1), 90)
-        self.assertEqual(dataif.pmd_load(pmd2), 6)
+        self.assertEqual(dataif.pmd_load(pmd1), 90.0)
+        self.assertEqual(dataif.pmd_load(pmd2), 6.0)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -624,8 +633,8 @@ class TestRebalDryrun_TwoPmd(TestCase):
         self.assertEqual(port21.rxq_rebalanced, {})
         self.assertEqual(port12.rxq_rebalanced, {})
         # 4. check pmd load
-        self.assertEqual(dataif.pmd_load(pmd1), 96)
-        self.assertEqual(dataif.pmd_load(pmd2), 90)
+        self.assertEqual(dataif.pmd_load(pmd1), 96.0)
+        self.assertEqual(dataif.pmd_load(pmd2), 90.0)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -691,11 +700,17 @@ class TestRebalDryrun_TwoPmd(TestCase):
         p2rxq2 = port22.find_rxq_by_id(1)
 
         for i in range(0, config.ncd_samples_max):
-            p2rxq2.cpu_cyc[i] = (86 * (i + 1))
-            p1rxq1.cpu_cyc[i] = (66 * (i + 1))
-            p3rxq1.cpu_cyc[i] = (22 * (i + 1))
-            p2rxq1.cpu_cyc[i] = (8 * (i + 1))
-            p1rxq2.cpu_cyc[i] = (4 * (i + 1))
+            p2rxq2.cpu_cyc[i] = 86
+            p1rxq1.cpu_cyc[i] = 66
+            p3rxq1.cpu_cyc[i] = 22
+            p2rxq1.cpu_cyc[i] = 8
+            p1rxq2.cpu_cyc[i] = 4
+
+            p2rxq2.rx_cyc[i] = 86
+            p1rxq1.rx_cyc[i] = 66
+            p3rxq1.rx_cyc[i] = 22
+            p2rxq1.rx_cyc[i] = 8
+            p1rxq2.rx_cyc[i] = 4
 
         # update pmd load values
         dataif.update_pmd_load(self.pmd_map)
@@ -719,8 +734,8 @@ class TestRebalDryrun_TwoPmd(TestCase):
         self.assertEqual(port21.rxq_rebalanced[0], pmd2.id)
         self.assertEqual(port12.rxq_rebalanced, {})
         # 4. check pmd load
-        self.assertEqual(dataif.pmd_load(pmd1), 88)
-        self.assertEqual(dataif.pmd_load(pmd2), 98)
+        self.assertEqual(dataif.pmd_load(pmd1), 88.0)
+        self.assertEqual(dataif.pmd_load(pmd2), 98.0)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -786,6 +801,9 @@ class TestRebalDryrun_TwoPmd(TestCase):
         self.assertEqual(port2.rxq_rebalanced, {})
         self.assertEqual(port3.rxq_rebalanced[0], pmd2.id)
         self.assertEqual(port4.rxq_rebalanced[0], pmd1.id)
+        # 4. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), (96.0 - 26.0 + 25.0))
+        self.assertEqual(dataif.pmd_load(pmd2), (90.0 - 25.0 + 26.0))
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -836,7 +854,12 @@ class TestRebalDryrun_TwoPmd(TestCase):
             p1rxq.cpu_cyc[i] = 0
             p2rxq.cpu_cyc[i] = 0
             p3rxq.cpu_cyc[i] = 0
-            p4rxq.cpu_cyc[i] = (98 * (i + 1))
+            p4rxq.cpu_cyc[i] = 98
+
+            p1rxq.rx_cyc[i] = 0
+            p2rxq.rx_cyc[i] = 0
+            p3rxq.rx_cyc[i] = 0
+            p4rxq.rx_cyc[i] = 98
 
         # fix cpu consumption for these pmds.
         for i in range(0, config.ncd_samples_max):
@@ -871,6 +894,9 @@ class TestRebalDryrun_TwoPmd(TestCase):
         self.assertEqual(port4.rxq_rebalanced, {})
         # 3.a and dry-run did not break original pinning.
         self.assertEqual(p4rxq.pmd.id, pmd2.id)
+        # 4. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), 0)
+        self.assertEqual(dataif.pmd_load(pmd2), 98.0)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -914,9 +940,29 @@ class TestRebalDryrun_TwoPmd(TestCase):
             pmd1.rx_cyc[i] = (96 * (i + 1))
 
         for i in range(0, config.ncd_samples_max):
-            pmd1.idle_cpu_cyc[i] = (10 * (i + 1))
-            pmd1.proc_cpu_cyc[i] = (90 * (i + 1))
-            pmd1.rx_cyc[i] = (90 * (i + 1))
+            pmd2.idle_cpu_cyc[i] = (4 * (i + 1))
+            pmd2.proc_cpu_cyc[i] = (96 * (i + 1))
+            pmd2.rx_cyc[i] = (96 * (i + 1))
+
+        # all rxqs are busy
+        port1 = pmd1.find_port_by_name('virtport1')
+        port2 = pmd2.find_port_by_name('virtport2')
+        port3 = pmd1.find_port_by_name('virtport3')
+        port4 = pmd2.find_port_by_name('virtport4')
+        p1rxq = port1.find_rxq_by_id(0)
+        p2rxq = port2.find_rxq_by_id(0)
+        p3rxq = port3.find_rxq_by_id(0)
+        p4rxq = port4.find_rxq_by_id(0)
+        for i in range(0, config.ncd_samples_max):
+            p1rxq.cpu_cyc[i] = 70
+            p2rxq.cpu_cyc[i] = 60
+            p3rxq.cpu_cyc[i] = 26
+            p4rxq.cpu_cyc[i] = 36
+
+            p1rxq.rx_cyc[i] = 70
+            p2rxq.rx_cyc[i] = 60
+            p3rxq.rx_cyc[i] = 26
+            p4rxq.rx_cyc[i] = 36
 
         # update pmd load values
         dataif.update_pmd_load(self.pmd_map)
@@ -942,6 +988,9 @@ class TestRebalDryrun_TwoPmd(TestCase):
         self.assertEqual(port2.rxq_rebalanced, {})
         self.assertEqual(port3.rxq_rebalanced, {})
         self.assertEqual(port4.rxq_rebalanced, {})
+        # 4. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), 96.0)
+        self.assertEqual(dataif.pmd_load(pmd2), 96.0)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -1022,14 +1071,22 @@ def fx_4pmd_each_2rxq(testobj):
     # add some cpu consumption for these rxqs.
     # order of rxqs based on cpu consumption: rxqp1,rxqp2,..rxqp8
     for i in range(0, config.ncd_samples_max):
-        fx_p1rxq.cpu_cyc[i] = (76 * (i + 1))
-        fx_p2rxq.cpu_cyc[i] = (75 * (i + 1))
-        fx_p3rxq.cpu_cyc[i] = (74 * (i + 1))
-        fx_p4rxq.cpu_cyc[i] = (73 * (i + 1))
-        fx_p5rxq.cpu_cyc[i] = (20 * (i + 1))
-        fx_p6rxq.cpu_cyc[i] = (15 * (i + 1))
-        fx_p7rxq.cpu_cyc[i] = (11 * (i + 1))
-        fx_p8rxq.cpu_cyc[i] = (7 * (i + 1))
+        fx_p1rxq.cpu_cyc[i] = 76
+        fx_p1rxq.rx_cyc[i] = 76
+        fx_p2rxq.cpu_cyc[i] = 75
+        fx_p2rxq.rx_cyc[i] = 75
+        fx_p3rxq.cpu_cyc[i] = 74
+        fx_p3rxq.rx_cyc[i] = 74
+        fx_p4rxq.cpu_cyc[i] = 73
+        fx_p4rxq.rx_cyc[i] = 73
+        fx_p5rxq.cpu_cyc[i] = 20
+        fx_p5rxq.rx_cyc[i] = 20
+        fx_p6rxq.cpu_cyc[i] = 15
+        fx_p6rxq.rx_cyc[i] = 15
+        fx_p7rxq.cpu_cyc[i] = 11
+        fx_p7rxq.rx_cyc[i] = 11
+        fx_p8rxq.cpu_cyc[i] = 7
+        fx_p8rxq.rx_cyc[i] = 7
 
 
 class TestRebalDryrun_FourPmd(TestCase):
@@ -1071,20 +1128,28 @@ class TestRebalDryrun_FourPmd(TestCase):
             fx_pmd1.proc_cpu_cyc[i] = (96 * (i + 1))
             fx_pmd1.rx_cyc[i] = (96 * (i + 1))
 
+        fx_pmd1.cyc_idx = config.ncd_samples_max - 1
+
         for i in range(0, config.ncd_samples_max):
             fx_pmd2.idle_cpu_cyc[i] = (10 * (i + 1))
             fx_pmd2.proc_cpu_cyc[i] = (90 * (i + 1))
             fx_pmd2.rx_cyc[i] = (90 * (i + 1))
+
+        fx_pmd2.cyc_idx = config.ncd_samples_max - 1
 
         for i in range(0, config.ncd_samples_max):
             fx_pmd3.idle_cpu_cyc[i] = (15 * (i + 1))
             fx_pmd3.proc_cpu_cyc[i] = (85 * (i + 1))
             fx_pmd3.rx_cyc[i] = (85 * (i + 1))
 
+        fx_pmd3.cyc_idx = config.ncd_samples_max - 1
+
         for i in range(0, config.ncd_samples_max):
             fx_pmd4.idle_cpu_cyc[i] = (20 * (i + 1))
             fx_pmd4.proc_cpu_cyc[i] = (80 * (i + 1))
             fx_pmd4.rx_cyc[i] = (80 * (i + 1))
+
+        fx_pmd4.cyc_idx = config.ncd_samples_max - 1
 
         self.pmd_map[self.core1_id] = fx_pmd1
         self.pmd_map[self.core2_id] = fx_pmd2
@@ -1114,10 +1179,10 @@ class TestRebalDryrun_FourPmd(TestCase):
     #      rxqp2(pmd2) -NOREB-> rxqp2(pmd2)
     #      rxqp3(pmd3) -NOREB-> rxqp3(pmd3)
     #      rxqp4(pmd4) -NOREB-> rxqp4(pmd4)
-    #      rxqp5(pmd1) --+--+-> rxqp5(pmd4)
-    #      rxqp6(pmd2) --+--+-> rxqp6(pmd3)
-    #      rxqp7(pmd3) --+--+-> rxqp7(pmd2)
-    #      rxqp8(pmd4) --+--+-> rxqp8(pmd1)
+    #      rxqp5(pmd1) --+--+-> rxqp5(reb_pmd4)
+    #      rxqp6(pmd2) --+--+-> rxqp6(reb_pmd3)
+    #      rxqp7(pmd3) --+--+-> rxqp7(reb_pmd2)
+    #      rxqp8(pmd4) --+--+-> rxqp8(reb_pmd1)
     #
     @mock.patch('netcontrold.lib.util.open')
     def test_eight_1rxq_lnuma(self, mock_open):
@@ -1172,6 +1237,11 @@ class TestRebalDryrun_FourPmd(TestCase):
         self.assertEqual(port6.rxq_rebalanced[0], pmd3.id)
         self.assertEqual(port7.rxq_rebalanced[0], pmd2.id)
         self.assertEqual(port8.rxq_rebalanced[0], pmd1.id)
+        # 4. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), (96.0 - 20.0 + 7.0))
+        self.assertEqual(dataif.pmd_load(pmd2), (90.0 - 15.0 + 11.0))
+        self.assertEqual(dataif.pmd_load(pmd3), (85.0 - 11.0 + 15.0))
+        self.assertEqual(dataif.pmd_load(pmd4), (80.0 - 7.0 + 20.0))
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -1237,12 +1307,19 @@ def fx_2pmd_one_empty_per_numa(testobj):
     # order of rxqs based on cpu consumption: rxqp2,rxqp1,rxqp3,
     #                                         rxqp5,rxqp4,rxqp6
     for i in range(0, config.ncd_samples_max):
-        fx_p2rxq.cpu_cyc[i] = (66 * (i + 1))
-        fx_p1rxq.cpu_cyc[i] = (20 * (i + 1))
-        fx_p3rxq.cpu_cyc[i] = (10 * (i + 1))
-        fx_p5rxq.cpu_cyc[i] = (66 * (i + 1))
-        fx_p4rxq.cpu_cyc[i] = (20 * (i + 1))
-        fx_p6rxq.cpu_cyc[i] = (10 * (i + 1))
+        fx_p2rxq.cpu_cyc[i] = 66
+        fx_p1rxq.cpu_cyc[i] = 20
+        fx_p3rxq.cpu_cyc[i] = 10
+        fx_p5rxq.cpu_cyc[i] = 66
+        fx_p4rxq.cpu_cyc[i] = 20
+        fx_p6rxq.cpu_cyc[i] = 10
+
+        fx_p2rxq.rx_cyc[i] = 66
+        fx_p1rxq.rx_cyc[i] = 20
+        fx_p3rxq.rx_cyc[i] = 10
+        fx_p5rxq.rx_cyc[i] = 66
+        fx_p4rxq.rx_cyc[i] = 20
+        fx_p6rxq.rx_cyc[i] = 10
 
 
 class TestRebalDryrun_FourPmd_Numa(TestCase):
@@ -1284,20 +1361,28 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
             fx_pmd1.proc_cpu_cyc[i] = (96 * (i + 1))
             fx_pmd1.rx_cyc[i] = (96 * (i + 1))
 
+        fx_pmd1.cyc_idx = config.ncd_samples_max - 1
+
         for i in range(0, config.ncd_samples_max):
             fx_pmd2.idle_cpu_cyc[i] = (10 * (i + 1))
             fx_pmd2.proc_cpu_cyc[i] = (90 * (i + 1))
             fx_pmd2.rx_cyc[i] = (90 * (i + 1))
+
+        fx_pmd2.cyc_idx = config.ncd_samples_max - 1
 
         for i in range(0, config.ncd_samples_max):
             fx_pmd3.idle_cpu_cyc[i] = (15 * (i + 1))
             fx_pmd3.proc_cpu_cyc[i] = (85 * (i + 1))
             fx_pmd3.rx_cyc[i] = (85 * (i + 1))
 
+        fx_pmd3.cyc_idx = config.ncd_samples_max - 1
+
         for i in range(0, config.ncd_samples_max):
             fx_pmd4.idle_cpu_cyc[i] = (20 * (i + 1))
             fx_pmd4.proc_cpu_cyc[i] = (80 * (i + 1))
             fx_pmd4.rx_cyc[i] = (80 * (i + 1))
+
+        fx_pmd4.cyc_idx = config.ncd_samples_max - 1
 
         self.pmd_map[self.core1_id] = fx_pmd1
         self.pmd_map[self.core2_id] = fx_pmd2
@@ -1352,6 +1437,36 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
         pmd1.del_port('virtport3')
         pmd3.del_port('virtport6')
 
+        # update pmd stats for 2 and 4 to be idle.
+        for i in range(0, config.ncd_samples_max):
+            pmd2.idle_cpu_cyc[i] = (100 * (i + 1))
+            pmd2.proc_cpu_cyc[i] = (0 * (i + 1))
+            pmd2.rx_cyc[i] = (0 * (i + 1))
+
+        for i in range(0, config.ncd_samples_max):
+            pmd4.idle_cpu_cyc[i] = (100 * (i + 1))
+            pmd4.proc_cpu_cyc[i] = (0 * (i + 1))
+            pmd4.rx_cyc[i] = (0 * (i + 1))
+
+        # update rxq stats for ports in pmd 1 and pmd 3
+        port1 = pmd1.find_port_by_name('virtport1')
+        port2 = pmd1.find_port_by_name('virtport2')
+        port4 = pmd3.find_port_by_name('virtport4')
+        port5 = pmd3.find_port_by_name('virtport5')
+        p1rxq = port1.find_rxq_by_id(0)
+        p2rxq = port2.find_rxq_by_id(0)
+        p4rxq = port4.find_rxq_by_id(0)
+        p5rxq = port5.find_rxq_by_id(0)
+        for i in range(0, config.ncd_samples_max):
+            p2rxq.cpu_cyc[i] = 66
+            p2rxq.rx_cyc[i] = 66
+            p1rxq.cpu_cyc[i] = 30
+            p1rxq.rx_cyc[i] = 30
+            p5rxq.cpu_cyc[i] = 66
+            p5rxq.rx_cyc[i] = 66
+            p4rxq.cpu_cyc[i] = 30
+            p4rxq.rx_cyc[i] = 30
+
         # update pmd load values
         dataif.update_pmd_load(self.pmd_map)
 
@@ -1370,10 +1485,6 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
         self.assertNotEqual(pmd_map[self.core3_id], pmd3)
         self.assertNotEqual(pmd_map[self.core4_id], pmd4)
         # 3. check rxq map after dryrun.
-        port1 = pmd1.find_port_by_name('virtport1')
-        port2 = pmd1.find_port_by_name('virtport2')
-        port4 = pmd3.find_port_by_name('virtport4')
-        port5 = pmd3.find_port_by_name('virtport5')
         port2reb = pmd2.find_port_by_name('virtport1')
         port4reb = pmd4.find_port_by_name('virtport4')
         # 3.a rxqp2 remains in pmd1
@@ -1394,6 +1505,11 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
         # 3.d.0 and dry-run did not break original pinning.
         rxqp4reb = port4reb.find_rxq_by_id(0)
         self.assertEqual(rxqp4reb.pmd.id, pmd3.id)
+        # 4. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), (96.0 - 30.0))
+        self.assertEqual(dataif.pmd_load(pmd2), 30.0)
+        self.assertEqual(dataif.pmd_load(pmd3), (85.0 - 30.0))
+        self.assertEqual(dataif.pmd_load(pmd4), 30.0)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
@@ -1459,6 +1575,20 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
         pmd3.del_port('virtport5')
         pmd3.del_port('virtport6')
 
+        # update pmd stats for 2, 3 and 4 to be idle.
+        for i in range(0, config.ncd_samples_max):
+            pmd2.idle_cpu_cyc[i] = (100 * (i + 1))
+            pmd2.proc_cpu_cyc[i] = (0 * (i + 1))
+            pmd2.rx_cyc[i] = (0 * (i + 1))
+
+            pmd3.idle_cpu_cyc[i] = (100 * (i + 1))
+            pmd3.proc_cpu_cyc[i] = (0 * (i + 1))
+            pmd3.rx_cyc[i] = (0 * (i + 1))
+
+            pmd4.idle_cpu_cyc[i] = (100 * (i + 1))
+            pmd4.proc_cpu_cyc[i] = (0 * (i + 1))
+            pmd4.rx_cyc[i] = (0 * (i + 1))
+
         # update pmd load values
         dataif.update_pmd_load(self.pmd_map)
 
@@ -1500,6 +1630,11 @@ class TestRebalDryrun_FourPmd_Numa(TestCase):
         # 3.d no port moved into numa 1
         self.assertEqual(pmd3.count_rxq(), 0)
         self.assertEqual(pmd4.count_rxq(), 0)
+        # 4. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), (96.0 - 20.0 - 10.0))
+        self.assertEqual(dataif.pmd_load(pmd2), 30.0)
+        self.assertEqual(dataif.pmd_load(pmd3), 0)
+        self.assertEqual(dataif.pmd_load(pmd4), 0)
 
         # del port object from pmd.
         # TODO: create fx_ post deletion routine for clean up
