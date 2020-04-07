@@ -594,7 +594,7 @@ def pmd_load(pmd):
         pmd_load = 100
     else:
         pcpp = proc_sum / rx_sum
-        pmd_load = float((pcpp * 100) / cpp)
+        pmd_load = round((pcpp * 100) / cpp, 2)
 
     return pmd_load
 
