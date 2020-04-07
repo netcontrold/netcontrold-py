@@ -1707,3 +1707,131 @@ class TestRebalDryrunIQ_FourPmd_Numa(TestRebalDryrun_FourPmd_Numa):
     core2_id = 1
     core3_id = 6
     core4_id = 7
+
+
+class TestRebalDryrunVarLoad_TwoPmd(TestCase):
+    """
+    Test rebalance for one or more rxq handled by two pmds.
+    """
+
+    rebalance_dryrun = dataif.rebalance_dryrun_by_cyc
+    pmd_map = dict()
+    core1_id = 0
+    core2_id = 1
+
+    # setup test environment
+    def setUp(self):
+        util.Memoize.forgot = True
+
+        # turn off limited info shown in assert failure for pmd object.
+        self.maxDiff = None
+
+        dataif.Context.nlog = NlogNoop()
+
+        # create one pmd object.
+        fx_pmd1 = dataif.Dataif_Pmd(self.core1_id)
+        fx_pmd2 = dataif.Dataif_Pmd(self.core2_id)
+
+        # let it be in numa 0.
+        fx_pmd1.numa_id = 0
+        fx_pmd2.numa_id = 0
+
+        # add some cpu consumption for these pmds.
+        # pmd1 to be 95% busy i.e using 5*96 cycles out of 5*100 cycles
+        for i in range(0, config.ncd_samples_max):
+            fx_pmd1.idle_cpu_cyc[i] = (4 * (i + 1))
+            fx_pmd1.proc_cpu_cyc[i] = (96 * (i + 1))
+            fx_pmd1.rx_cyc[i] = (96 * (i + 1))
+        fx_pmd1.cyc_idx = config.ncd_samples_max - 1
+
+        # pmd2 to be 90% busy i.e using 5*90 cycles out of 5*100 cycles
+        for i in range(0, config.ncd_samples_max):
+            fx_pmd2.idle_cpu_cyc[i] = (10 * (i + 1))
+            fx_pmd2.proc_cpu_cyc[i] = (90 * (i + 1))
+            fx_pmd2.rx_cyc[i] = (90 * (i + 1))
+        fx_pmd2.cyc_idx = config.ncd_samples_max - 1
+
+        self.pmd_map[self.core1_id] = fx_pmd1
+        self.pmd_map[self.core2_id] = fx_pmd2
+        return
+
+    # Test case:
+    #   With two threads from same numa, where one pmd thread is handling
+    #   two single-queued ports, while the other pmd is empty,
+    #   check whether rebalance is performed.
+    #   Scope is to check if only one rxq is moved to empty pmd.
+    #
+    #   order of rxqs based on cpu consumption: rxqp2,rxqp1
+    #   order of pmds for rebalance dryrun: pmd1,pmd2
+    #
+    #   1. rxqp2(pmd1) -NOREB-> rxqp2(pmd1)
+    #      rxqp1(pmd1)
+    #        -  (pmd2)
+    #
+    #   2. rxqp2(pmd1) -NOREB-> rxqp2(pmd1)
+    #      rxqp1(pmd1) --+--+-> rxqp1(reb_pmd2)
+    #
+    @mock.patch('netcontrold.lib.util.open')
+    def test_two_1rxq_with_empty_lnuma(self, mock_open):
+        mock_open.side_effect = [
+            mock.mock_open(read_data=_FX_CPU_INFO).return_value
+        ]
+
+        # set same numa for pmds
+        pmd1 = self.pmd_map[self.core1_id]
+        pmd2 = self.pmd_map[self.core2_id]
+        pmd1.numa_id = 0
+        pmd2.numa_id = 0
+
+        # let pmd2 be idle
+        for i in range(0, config.ncd_samples_max):
+            pmd2.idle_cpu_cyc[i] = (100 * (i + 1))
+            pmd2.proc_cpu_cyc[i] = (0 * (i + 1))
+            pmd2.rx_cyc[i] = (0 * (i + 1))
+
+        # create rxq
+        fx_2pmd_one_empty(self)
+
+        # update rxq stats
+        port1 = pmd1.find_port_by_name('virtport1')
+        port2 = pmd1.find_port_by_name('virtport2')
+        p1rxq = port1.find_rxq_by_id(0)
+        p2rxq = port2.find_rxq_by_id(0)
+
+        # fluctuate rxq consumption within 96% load in pmd1
+        # p1rxq consumption is 36 % in 5*100 cyc ie 180
+        # p2rxq consumption is 60 % in 5*100 cyc ie 300
+        p1rxq.rx_cyc = [0, 61, 51, 31, 21, 16]
+        p1rxq.cpu_cyc = [0, 61, 51, 31, 21, 16]
+        p2rxq.rx_cyc = [0, 35, 45, 65, 75, 80]
+        p2rxq.cpu_cyc = [0, 35, 45, 65, 75, 80]
+
+        # update pmd load values
+        dataif.update_pmd_load(self.pmd_map)
+
+        # copy original pmd objects
+        pmd_map = copy.deepcopy(self.pmd_map)
+
+        # test dryrun
+        n_reb_rxq = type(self).rebalance_dryrun(self.pmd_map)
+
+        # validate results
+        # 1. all two rxqs be rebalanced.
+        self.assertEqual(n_reb_rxq, 1, "one rxq to be rebalanced")
+        # 2. each pmd is updated.
+        self.assertNotEqual(pmd_map[self.core1_id], pmd1)
+        self.assertNotEqual(pmd_map[self.core2_id], pmd2)
+        # 3. check rxq map after dryrun.
+        # 3.a rxqp2 remains in pmd1
+        self.assertEqual(port2.rxq_rebalanced, {})
+        self.assertEqual(port2.find_rxq_by_id(0).pmd.id, pmd1.id)
+        # 3.a rxqp1 moves into pmd2
+        self.assertEqual(port1.rxq_rebalanced[0], pmd2.id)
+        # 4. check pmd load
+        self.assertEqual(dataif.pmd_load(pmd1), 60.0)
+        self.assertEqual(dataif.pmd_load(pmd2), 36.0)
+
+        # del port object from pmd.
+        # TODO: create fx_ post deletion routine for clean up
+        pmd1.del_port('virtport1')
+        pmd1.del_port('virtport2')
