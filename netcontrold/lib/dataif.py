@@ -917,7 +917,7 @@ def get_port_stats():
             # entry for this port name.
             if pname in Context.port_to_cls:
                 port = Context.port_to_cls[pname]
-                assert(port.id == pid)
+                assert(port.id == int(pid))
 
                 # Store following stats in new sampling slot.
                 port.cyc_idx = (port.cyc_idx + 1) % config.ncd_samples_max

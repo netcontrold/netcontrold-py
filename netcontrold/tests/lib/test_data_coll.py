@@ -17,6 +17,7 @@ from unittest import mock
 from unittest import TestCase
 
 from netcontrold.lib import dataif
+from netcontrold.lib import config
 import copy
 
 
@@ -80,10 +81,10 @@ main thread:
 def mock_pmd_rxqs(*args):
     stats = """pmd thread numa_id 0 core_id 1:
   isolated : false
-  port: port1   queue-id:  0  pmd usage:  0 %
+  port: port1   queue-id:  0  pmd usage:  5 %
 pmd thread numa_id 0 core_id 13:
-  isolated : false
-  port: port2   queue-id:  0  pmd usage:  0 %"""  # noqa: E501
+  isolated : true
+  port: port2   queue-id:  0  pmd usage:  5 %"""  # noqa: E501
     return stats
 
 
@@ -189,13 +190,22 @@ class TestDataif_Collection(TestCase):
         # turn off limited info shown in assert failure for pmd object.
         self.maxDiff = None
 
-        dataif.Context.nlog = NlogNoop()
+        dataif.Context.nlog = NlogNoop()  # check here
+
+        dataif.Context.port_to_id = dict()
+        dataif.Context.port_to_cls = dict()
 
         # create one pmd object.
         fx_pmd_1 = dataif.Dataif_Pmd(1)
 
         # let it be in numa 0.
         fx_pmd_1.numa_id = 0
+
+        # add some cpu consumption for this pmd.
+        for i in range(0, config.ncd_samples_max):
+            fx_pmd_1.idle_cpu_cyc[i] = (1000 + (100 * i))
+            fx_pmd_1.proc_cpu_cyc[i] = (5000 + (500 * i))
+            fx_pmd_1.rx_cyc[i] = (10000 + (100 * i))
 
         # add it to pmd_map
         self.pmd_map[1] = fx_pmd_1
@@ -208,13 +218,19 @@ class TestDataif_Collection(TestCase):
         port1.numa_id = fx_pmd_1.numa_id
 
         # add rxq to port object
-        rxq_1 = port1.add_rxq(0)  # noqa: F841
+        rxq_1 = port1.add_rxq(0)
 
         # create another pmd object.
         fx_pmd_2 = dataif.Dataif_Pmd(13)
 
         # let it be in numa 0.
         fx_pmd_2.numa_id = 0
+
+        # add some cpu consumption for this pmd.
+        for i in range(0, config.ncd_samples_max):
+            fx_pmd_2.idle_cpu_cyc[i] = (1000 + (100 * i))
+            fx_pmd_2.proc_cpu_cyc[i] = (5000 + (500 * i))
+            fx_pmd_2.rx_cyc[i] = (10000 + (100 * i))
 
         # add it to pmd_map
         self.pmd_map[13] = fx_pmd_2
@@ -227,7 +243,16 @@ class TestDataif_Collection(TestCase):
         port2.numa_id = fx_pmd_2.numa_id
 
         # add rxq to port object
-        rxq_2 = port2.add_rxq(0)  # noqa: F841
+        rxq_2 = port2.add_rxq(0)
+
+        port1.id = 1
+        port2.id = 2
+
+        dataif.Context.port_to_id["port1"] = 1
+        dataif.Context.port_to_id["port2"] = 2
+
+        dataif.Context.port_to_cls["port1"] = port1
+        dataif.Context.port_to_cls["port2"] = port2
 
         return
 
@@ -241,15 +266,15 @@ class TestDataif_Collection(TestCase):
 
         # modify pmd_1 object to expected
         expected_pmd_1 = expected[1]
-        expected_pmd_1.rx_cyc[expected_pmd_1.cyc_idx] = 1000
-        expected_pmd_1.idle_cpu_cyc[expected_pmd_1.cyc_idx] = 1100
-        expected_pmd_1.proc_cpu_cyc[expected_pmd_1.cyc_idx] = 1200
+        expected_pmd_1.rx_cyc[1] = 1000
+        expected_pmd_1.idle_cpu_cyc[1] = 1100
+        expected_pmd_1.proc_cpu_cyc[1] = 1200
 
         # modify pmd_2 object to expected
         expected_pmd_2 = expected[13]
-        expected_pmd_2.rx_cyc[expected_pmd_2.cyc_idx] = 3000
-        expected_pmd_2.idle_cpu_cyc[expected_pmd_2.cyc_idx] = 3100
-        expected_pmd_2.proc_cpu_cyc[expected_pmd_2.cyc_idx] = 3200
+        expected_pmd_2.rx_cyc[1] = 3000
+        expected_pmd_2.idle_cpu_cyc[1] = 3100
+        expected_pmd_2.proc_cpu_cyc[1] = 3200
 
         # calling get_pmd_stats function. pmd_map is modified here
         out = dataif.get_pmd_stats(self.pmd_map)
@@ -259,7 +284,6 @@ class TestDataif_Collection(TestCase):
         out_pmd_2 = out[13]
 
         # check if original and modified pmd_map objects are different.
-        # if __eq__ returns false , then pmd objects are modified
         self.assertEqual(
             out_pmd_1,
             expected_pmd_1,
@@ -284,12 +308,6 @@ class TestDataif_Collection(TestCase):
         expected_port1.type = "dpdkvhostuserclient"
         expected_port1.tx_retry_cyc[expected_port1.cyc_idx] = 0
 
-        # calling get_interface_stats function.port1 object is modified here
-        dataif.get_interface_stats()
-
-        # check if expected and modified port1 objects are same
-        self.assertEqual(port1, expected_port1, "port 1 to be matched")
-
         # create a copy of original port2
         pmd2 = self.pmd_map[13]
         port2 = pmd2.find_port_by_name('port2')
@@ -302,5 +320,80 @@ class TestDataif_Collection(TestCase):
         # calling get_interface_stats function.port2 object is modified here
         dataif.get_interface_stats()
 
+        # check if expected and modified port1 objects are same
+        self.assertEqual(port1, expected_port1, "port 1 to be matched")
+
         # check if expected and modified port2 objects are same
         self.assertEqual(port2, expected_port2, "port 2 to be matched")
+
+    # Test case:
+    #   getting pmd rxqs from get_pmd_rxqs function and checking
+    #   if declared pmd objects are modified or not
+    @mock.patch('netcontrold.lib.util.exec_host_command', mock_pmd_rxqs)
+    def test_get_pmd_rxqs_1(self):
+        # create a copy of original pmd_map
+        expected = copy.deepcopy(self.pmd_map)
+
+        # modify pmd_1 object to expected
+        expected_pmd_1 = expected[1]
+        expected_port_1 = expected_pmd_1.find_port_by_name('port1')
+        expected_pmd_1.isolated = False
+        expected_rxq_1 = expected_port_1.find_rxq_by_id(0)
+        expected_rxq_1.cpu_cyc[expected_pmd_1.cyc_idx] = -25.0
+
+        # modify pmd_2 object to expected
+        expected_pmd_2 = expected[13]
+        expected_port_2 = expected_pmd_2.find_port_by_name('port2')
+        expected_pmd_2.isolated = True
+        expected_rxq_2 = expected_port_2.find_rxq_by_id(0)
+        expected_rxq_2.cpu_cyc[expected_pmd_2.cyc_idx] = -125.0
+
+        # calling get_pmd_rxqs function. pmd_map is modified here
+        out = dataif.get_pmd_rxqs(self.pmd_map)
+
+        # modified pmd objects
+        out_pmd_1 = out[1]
+        out_pmd_2 = out[13]
+
+        # check if original and modified pmd_map objects are different.
+        self.assertEqual(out_pmd_1, expected_pmd_1, "pmd 1 to be matched")
+
+        self.assertEqual(out_pmd_2, expected_pmd_2, "pmd 2 to be matched")
+
+    # Test case:
+    #   getting port stats from get_port_stats function and checking
+    #   if declared port objects are modified or not
+    @mock.patch('netcontrold.lib.util.exec_host_command', mock_port_stats)
+    def test_get_port_stats_1(self):
+        # create a copy of original port1
+        pmd1 = self.pmd_map[1]
+        port1 = pmd1.find_port_by_name('port1')
+        expected_port1 = copy.deepcopy(port1)
+
+        # modify port 1 object to expected
+        expected_port1.rx_cyc[expected_port1.cyc_idx] = 5
+        expected_port1.rx_drop_cyc[expected_port1.cyc_idx] = 2
+        expected_port1.tx_cyc[expected_port1.cyc_idx] = 5
+        expected_port1.tx_drop_cyc[expected_port1.cyc_idx] = 3
+
+        # create a copy of original port2
+        pmd2 = self.pmd_map[13]
+        port2 = pmd2.find_port_by_name('port2')
+        expected_port2 = copy.deepcopy(port2)
+
+        # modify port 2 object to expected
+        expected_port2.rx_cyc[expected_port2.cyc_idx] = 5
+        expected_port2.rx_drop_cyc[expected_port2.cyc_idx] = 2
+        expected_port2.tx_cyc[expected_port2.cyc_idx] = 5
+        expected_port2.tx_drop_cyc[expected_port2.cyc_idx] = 3
+
+        # calling get_port_stats function.port objects are modified here
+        dataif.get_port_stats()
+
+        # check if expected and modified port objects are same
+        self.assertEqual(port1, expected_port1, "port 1 to be matched")
+        self.assertEqual(port2, expected_port2, "port 2 to be matched")
+
+    def tearDown(self):
+        dataif.Context.port_to_cls = dict()
+        dataif.Context.port_to_id = dict()
