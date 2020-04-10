@@ -32,6 +32,7 @@ jobs:
             - Second Change
           draft: false
           prerelease: false
+        continue-on-error: true
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
