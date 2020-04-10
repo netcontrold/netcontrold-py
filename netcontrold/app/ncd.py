@@ -27,6 +27,7 @@ import socket
 import os
 import logging
 import threading
+import json
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 
@@ -210,6 +211,10 @@ class CtlDThread(util.Thread):
                     conn.sendall(b"CTLD_DATA_ACK %6d" % (len(status)))
                     conn.sendall(status.encode())
 
+                elif cmd == 'CTLD_STATUS_CLEAR':
+                    ctx.events = []
+                    conn.sendall(b"CTLD_ACK")
+
                 elif cmd == 'CTLD_VERSION':
                     status = "netcontrold v%s\n" % netcontrold.__version__
                     ret = util.exec_host_command("ovs-vsctl -V")
@@ -391,6 +396,9 @@ def rebalance_switch(pmd_map):
 
 def ncd_kill(signal, frame):
     ctx = dataif.Context
+    rctx = RebalContext
+    tctx = TraceContext
+
     nlog.critical("Got signal %s, doing required clean up .." % signal)
 
     # reset rebalance settings in ports
@@ -410,6 +418,23 @@ def ncd_kill(signal, frame):
         else:
             nlog.warn("removing pmd-rxq-affinity failed for some ports.")
             nlog.warn("you may check ovs-vsctl --no-wait %s" % cmd)
+
+    os.makedirs(os.path.dirname(config.ncd_dump_file), exist_ok=True)
+    with open(config.ncd_dump_file, 'w') as f:
+        fh = ctx.log_handler
+        json.dump({
+            "time": "%s" % datetime.now(),
+            "version": netcontrold.__version__,
+            "events": ctx.events,
+            "config": {
+                "trace_mode": tctx.trace_mode,
+                "rebalance_mode": rctx.rebal_mode,
+                "verbose_log": fh.level == logging.DEBUG,
+            },
+        }, f)
+
+        nlog.info("saved current configuration and data in %s" %
+                  config.ncd_dump_file)
 
     raise error.NcdShutdownExc
 
@@ -545,7 +570,7 @@ def ncd_main(argv):
             ncd_rebal_interval / ncd_sample_interval, config.ncd_samples_max)
 
         rctx.rebal_mode = True
-        rctx.rebal_quick = True
+        rctx.rebal_quick = False
 
     config.ncd_samples_max = int(config.ncd_samples_max)
 
@@ -573,6 +598,35 @@ def ncd_main(argv):
     cur_var = 0
     ncd_samples_max = config.ncd_samples_max
     min_sample_i = 0
+
+    # retrieve ncd dump if exists.
+    ncd_dump = None
+    if os.path.exists(config.ncd_dump_file):
+        nlog.info("reading previous configuration and data from %s" %
+                  config.ncd_dump_file)
+        with open(config.ncd_dump_file, 'r') as f:
+            ncd_dump = json.load(f)
+
+        ctx.events = ncd_dump["events"]
+        tctx.trace_mode = ncd_dump["config"]["trace_mode"]
+        rctx.rebal_mode = ncd_dump["config"]["rebalance_mode"]
+        fh = ctx.log_handler
+        if ncd_dump["config"]["verbose_log"]:
+            fh.setLevel(logging.DEBUG)
+
+    else:
+        os.makedirs(os.path.dirname(config.ncd_dump_file), exist_ok=True)
+        with open(config.ncd_dump_file, 'w') as f:
+            json.dump({
+                "time": "%s" % datetime.now(),
+                "version": netcontrold.__version__,
+                "events": ctx.events,
+                "config": {
+                    "trace_mode": tctx.trace_mode,
+                    "rebalance_mode": rctx.rebal_mode,
+                    "verbose_log": fh.level == logging.DEBUG,
+                },
+            }, f)
 
     # begin rebalance dry run
     while (1):

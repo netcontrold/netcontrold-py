@@ -17,6 +17,7 @@ USAGE = "usage: ncd_ctl CMD\n" \
         "  stop\n" \
         "  restart\n" \
         "  status\n" \
+        "  status clear\n" \
         "  config show\n" \
         "  config rebalance <on|off>\n" \
         "  config rebalance_quick <on|off>\n" \
@@ -28,8 +29,14 @@ USAGE = "usage: ncd_ctl CMD\n" \
 try:
     assert (len(sys.argv) >= 2)
 
-    if sys.argv[1] in ('start', 'stop', 'restart', 'status', 'version'):
+    if sys.argv[1] in ('start', 'stop', 'restart', 'version'):
         assert (len(sys.argv) == 2)
+
+    elif sys.argv[1] == 'status':
+        if (len(sys.argv) == 3):
+            assert (sys.argv[2] == 'clear')
+        else:
+            assert (len(sys.argv) == 2)
 
     elif sys.argv[1] == 'config':
         if (len(sys.argv) == 3):
@@ -63,7 +70,10 @@ elif sys.argv[1] == 'stop':
     main_srv.stop()
 
 elif sys.argv[1] == 'status':
-    main_srv.status()
+    if (len(sys.argv) == 3) and sys.argv[2] == 'clear':
+        main_srv.status_clear()
+    else:
+        main_srv.status()
 
 elif sys.argv[1] == 'config':
     if sys.argv[2] == 'show':

@@ -47,3 +47,6 @@ ncd_cb_pktdrop_min = 10000
 
 # Unix socket file
 ncd_socket = "/var/run/netcontrold/ncd_ctrld.sock"
+
+# Dump file for status store and load
+ncd_dump_file = "/var/log/netcontrold/ncd.json"
