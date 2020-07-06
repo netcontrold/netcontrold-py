@@ -50,3 +50,6 @@ ncd_socket = "/var/run/netcontrold/ncd_ctrld.sock"
 
 # Dump file for status store and load
 ncd_dump_file = "/var/log/netcontrold/ncd.json"
+
+# Minimum threshold (in ppm) for upcall rate
+datapath_overflow_rate = 0.000001

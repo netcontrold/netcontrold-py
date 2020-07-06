@@ -268,6 +268,7 @@ def collect_data(n_samples, s_sampling):
             dataif.get_interface_stats()
             dataif.get_pmd_stats(ctx.pmd_map)
             dataif.get_pmd_rxqs(ctx.pmd_map)
+            dataif.get_coverage_stats(ctx.coverage_map)
         except (error.OsCommandExc,
                 error.ObjCreateExc,
                 error.ObjConsistencyExc,
@@ -650,6 +651,9 @@ def ncd_main(argv):
                     drop = dataif.port_drop_ppm(port)
                     drop_min = config.ncd_cb_pktdrop_min
                     tx_retry = dataif.port_tx_retry(port)
+                    coverage = ctx.coverage_map["coverage"]
+                    upcall_overflow_rate = dataif.upcall_rate(
+                        coverage, pmd_map)
                     do_cb = False
                     if drop[0] > drop_min:
                         nlog.info("port %s drop_rx %d ppm above %d ppm" %
@@ -668,6 +672,15 @@ def ncd_main(argv):
                                   (port.name, tx_retry,
                                    config.ncd_samples_max))
                         ctx.events.append((port.name, "tx_retry", ctx.last_ts))
+                        do_cb = True
+
+                    if upcall_overflow_rate > config.datapath_overflow_rate:
+                        nlog.info(
+                            "coverage upcall %f above %f above %f" %
+                            (upcall_overflow_rate,
+                             config.datapath_overflow_rate,
+                             config.datapath_overflow_rate))
+                        ctx.events.append(("coverage", "upcall", ctx.last_ts))
                         do_cb = True
 
                     if not do_cb:
