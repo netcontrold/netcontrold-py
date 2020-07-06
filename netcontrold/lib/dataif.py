@@ -103,6 +103,7 @@ class Dataif_Rxq(Rxq):
         super(Dataif_Rxq, self).__init__(_id)
 
         self.pmd = None
+        self.enabled = False
         self.cpu_cyc = [0, ] * int(config.ncd_samples_max)
         self.rx_cyc = [0, ] * int(config.ncd_samples_max)
 
@@ -568,8 +569,7 @@ def pmd_load(pmd):
     # Given we have samples of rx packtes, processing and idle cpu
     # cycles of a pmd, calculate load on this pmd.
     # sort counters so that, incremental differences calculated.
-    sort_rx_cyc = pmd.rx_cyc[:]
-    sort_rx_cyc.sort()
+    sort_rx_cyc = sorted(pmd.rx_cyc[:])
     sort_idle_cyc = pmd.idle_cpu_cyc[:]
     sort_idle_cyc.sort()
     sort_proc_cyc = pmd.proc_cpu_cyc[:]
@@ -731,7 +731,7 @@ def get_pmd_stats(pmd_map):
         else:
             # From other lines, we retrieve stats of the pmd.
             (sname, sval) = line.split(":")
-            sname = re.sub("^\s+", "", sname)
+            sname = re.sub(r"^\s+", "", sname)
             sval = sval[1:].split()
             if sname == "packets received":
                 pmd.rx_cyc[pmd.cyc_idx] = int(sval[0])
@@ -805,16 +805,17 @@ def get_pmd_rxqs(pmd_map):
         elif re.match(r'\s.*port: .*', line):
             # From this line, we retrieve cpu usage of rxq.
             linesre = re.search(r'\s.*port:\s([A-Za-z0-9_-]+)\s*'
-                                r'queue-id:\s*(\d+)\s*'
+                                r'queue-id:\s*(\d+)\s*(?=\((enabled)\))?.*'
                                 r'pmd usage:\s*(\d+|NOT AVAIL)\s*?',
                                 line)
 
             pname = linesre.groups()[0]
             qid = int(linesre.groups()[1])
+            enabled_flag = linesre.groups()[2]
             try:
-                qcpu = int(linesre.groups()[2])
+                qcpu = int(linesre.groups()[3])
             except ValueError:
-                qcpu = linesre.groups()[2]
+                qcpu = linesre.groups()[3]
                 if (qcpu == 'NOT AVAIL'):
                     raise ObjParseExc("pmd usage unavailable for now")
                 else:
@@ -861,10 +862,14 @@ def get_pmd_rxqs(pmd_map):
 
             rxq.cpu_cyc[pmd.cyc_idx] = qcpu_diff
             rxq.rx_cyc[pmd.cyc_idx] = qrx_diff
+            if (enabled_flag == "enabled"):
+                rxq.enabled = True
+            else:
+                rxq.enabled = False
         else:
             # From other line, we retrieve isolated flag.
             (sname, sval) = line.split(":")
-            sname = re.sub("^\s+", "", sname)
+            sname = re.sub(r"^\s+", "", sname)
             assert(sname == 'isolated ')
             pmd.isolated = {'true': True, 'false': False}[sval[1:]]
 
