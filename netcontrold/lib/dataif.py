@@ -25,6 +25,7 @@ import copy
 from netcontrold.lib import util
 
 from netcontrold.lib import config
+import operator
 from netcontrold.lib.error import ObjCreateExc, ObjParseExc,\
     ObjConsistencyExc, ObjModelExc, OsCommandExc
 
@@ -37,6 +38,7 @@ class Context():
     last_ts = None
     events = []
     log_handler = None
+    coverage_map = {}
 
 
 nlog = Context.nlog
@@ -103,6 +105,7 @@ class Dataif_Rxq(Rxq):
         super(Dataif_Rxq, self).__init__(_id)
 
         self.pmd = None
+        self.enabled = False
         self.cpu_cyc = [0, ] * int(config.ncd_samples_max)
         self.rx_cyc = [0, ] * int(config.ncd_samples_max)
 
@@ -329,6 +332,45 @@ def make_dataif_port(port_name=None):
         Context.port_to_cls[port_name] = Dataif_Port
 
     return Dataif_Port
+
+
+class Dataif_Coverage(object):
+    """
+    Class to represent the coverage counters.
+
+    Attributes
+    ----------
+    upcall : list
+        samples of upcall_flow_limit_hit coverage counter.
+    index : int
+        current sampling index
+
+    Methods
+    -------
+    __eq__()
+        method to compare between objects of this class
+    """
+
+    def __init__(self):
+        """
+
+        """
+
+        self.upcall = [0, ] * int(config.ncd_samples_max)
+        self.index = 0
+
+    def __eq__(self, other):
+        """
+        Define the method to compare between objects of this class.
+        """
+        if not isinstance(other, self.__class__):
+            return False
+
+        if not (sorted(self.upcall) == sorted(other.upcall)):
+            return False
+
+        # all equals otherwise.
+        return True
 
 
 class Dataif_Pmd(object):
@@ -568,12 +610,9 @@ def pmd_load(pmd):
     # Given we have samples of rx packtes, processing and idle cpu
     # cycles of a pmd, calculate load on this pmd.
     # sort counters so that, incremental differences calculated.
-    sort_rx_cyc = pmd.rx_cyc[:]
-    sort_rx_cyc.sort()
-    sort_idle_cyc = pmd.idle_cpu_cyc[:]
-    sort_idle_cyc.sort()
-    sort_proc_cyc = pmd.proc_cpu_cyc[:]
-    sort_proc_cyc.sort()
+    sort_rx_cyc = sorted(pmd.rx_cyc[:])
+    sort_idle_cyc = sorted(pmd.idle_cpu_cyc[:])
+    sort_proc_cyc = sorted(pmd.proc_cpu_cyc[:])
 
     rx_sum = sum([j - i for i, j in zip(sort_rx_cyc[:-1], sort_rx_cyc[1:])])
     if rx_sum == 0:
@@ -650,6 +689,52 @@ def pmd_need_rebalance(pmd_map):
         return True
 
     return False
+
+
+def get_coverage_stats(coverage_map):
+    """
+    Collect stats of coverage counters. In every sampling iteration, these stats are stored
+    in corresponding sampling slots.
+
+    Parameters
+    ----------
+    coverage_map : dict
+        mapping of coverage class and its coverage object.
+
+    Raises
+    ------
+    OsCommandExc
+        if the given OS command did not succeed for some reason.
+    """
+    nlog = Context.nlog
+
+    # retrieve required data from the vswitch.
+    cmd = "ovs-appctl coverage/show"
+    data = util.exec_host_command(cmd)
+    if not data:
+        raise OsCommandExc("unable to collect data")
+
+    for line in data.splitlines():
+        # In below matching line, retrieve upcall_flow_limit_hit count
+        if line.startswith("upcall_flow_limit_hit"):
+            linesre = re.split(r'\s{2,}', line)
+
+            name, count = linesre[-1].split(": ")
+            count = int(count)
+
+            # if coverage object exists modify it by adding new sample
+            if "coverage" in coverage_map:
+                coverage = coverage_map["coverage"]
+                coverage.index = (coverage.index + 1) % config.ncd_samples_max
+
+            # else create new coverage object and add sample to it
+            else:
+                coverage = Dataif_Coverage()
+                Context.coverage_map["coverage"] = coverage
+
+            coverage.upcall[coverage.index] = count
+
+    return coverage_map
 
 
 def get_pmd_stats(pmd_map):
@@ -731,7 +816,7 @@ def get_pmd_stats(pmd_map):
         else:
             # From other lines, we retrieve stats of the pmd.
             (sname, sval) = line.split(":")
-            sname = re.sub("^\s+", "", sname)
+            sname = re.sub(r"^\s+", "", sname)
             sval = sval[1:].split()
             if sname == "packets received":
                 pmd.rx_cyc[pmd.cyc_idx] = int(sval[0])
@@ -805,16 +890,17 @@ def get_pmd_rxqs(pmd_map):
         elif re.match(r'\s.*port: .*', line):
             # From this line, we retrieve cpu usage of rxq.
             linesre = re.search(r'\s.*port:\s([A-Za-z0-9_-]+)\s*'
-                                r'queue-id:\s*(\d+)\s*'
+                                r'queue-id:\s*(\d+)\s*(?=\((enabled)\))?.*'
                                 r'pmd usage:\s*(\d+|NOT AVAIL)\s*?',
                                 line)
 
             pname = linesre.groups()[0]
             qid = int(linesre.groups()[1])
+            enabled_flag = linesre.groups()[2]
             try:
-                qcpu = int(linesre.groups()[2])
+                qcpu = int(linesre.groups()[3])
             except ValueError:
-                qcpu = linesre.groups()[2]
+                qcpu = linesre.groups()[3]
                 if (qcpu == 'NOT AVAIL'):
                     raise ObjParseExc("pmd usage unavailable for now")
                 else:
@@ -861,10 +947,14 @@ def get_pmd_rxqs(pmd_map):
 
             rxq.cpu_cyc[pmd.cyc_idx] = qcpu_diff
             rxq.rx_cyc[pmd.cyc_idx] = qrx_diff
+            if (enabled_flag == "enabled"):
+                rxq.enabled = True
+            else:
+                rxq.enabled = False
         else:
             # From other line, we retrieve isolated flag.
             (sname, sval) = line.split(":")
-            sname = re.sub("^\s+", "", sname)
+            sname = re.sub(r"^\s+", "", sname)
             assert(sname == 'isolated ')
             pmd.isolated = {'true': True, 'false': False}[sval[1:]]
 
@@ -1379,3 +1469,33 @@ def port_tx_retry(port):
     """
     return sum(
         [j - i for i, j in zip(port.tx_retry_cyc[:-1], port.tx_retry_cyc[1:])])
+
+
+def upcall_rate(coverage, pmd_map):
+    """
+    Return rate of upcall hit, from the coverage stats.
+    """
+    upcall = coverage.upcall
+
+    # sort the upcall stats samples
+    upcall = sorted(upcall)
+
+    # calculate upcall interval
+    upcall_interval = list(map(operator.sub, upcall[1:], upcall[:-1]))
+
+    # calculate total traffic from all active pmds
+    all_pmd_traffic = []
+    for pmd in pmd_map.values():
+        all_pmd_traffic.append(pmd.rx_cyc)
+
+    total_traffic = [sum(i) for i in zip(*all_pmd_traffic)]
+
+    total_traffic = sorted(total_traffic)
+
+    # calculate traffic_interval
+    traffic_interval = list(
+        map(operator.sub, total_traffic[1:], total_traffic[:-1]))
+
+    # calculate rate
+    rate = max(list(map(operator.truediv, upcall_interval, traffic_interval)))
+    return rate
