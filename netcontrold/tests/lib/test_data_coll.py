@@ -178,59 +178,59 @@ type                : dpdk"""  # noqa: E501
 
 
 def mock_coverage_stats(*args):
-    stats = """Event coverage, avg rate over last: 5 seconds, last minute, last hour,  hash=bf430944:
-bridge_reconfigure         0.2/sec     0.050/sec        0.0364/sec   total: 11908
+    stats = """Event coverage, avg rate over last: 5 seconds, last minute, last hour:
+bridge_reconfigure         0.2/sec     0.050/sec        0.0364/sec   total: 11
 ofproto_flush              0.0/sec     0.000/sec        0.0000/sec   total: 4
-ofproto_packet_out         0.0/sec     0.000/sec        0.0008/sec   total: 483
-ofproto_recv_openflow      0.2/sec     0.200/sec        0.1989/sec   total: 6260
+ofproto_packet_out         0.0/sec     0.000/sec        0.0008/sec   total: 4
+ofproto_recv_openflow      0.2/sec     0.200/sec        0.1989/sec   total: 62
 ofproto_update_port        0.0/sec     0.000/sec        0.0000/sec   total: 40
-ofproto_dpif_expired       0.0/sec     0.000/sec        0.0000/sec   total: 299
-rev_reconfigure            0.2/sec     0.050/sec        0.0364/sec   total: 8415
+ofproto_dpif_expired       0.0/sec     0.000/sec        0.0000/sec   total: 29
+rev_reconfigure            0.2/sec     0.050/sec        0.0364/sec   total: 84
 rev_port_toggled           0.0/sec     0.000/sec        0.0000/sec   total: 3
-rev_flow_table             0.0/sec     0.000/sec        0.0000/sec   total: 556
+rev_flow_table             0.0/sec     0.000/sec        0.0000/sec   total: 5
 upcall_flow_limit_hit      0.0/sec     0.000/sec        0.0000/sec   total: 16
-xlate_actions              0.0/sec     0.000/sec        0.0017/sec   total: 2032
+xlate_actions              0.0/sec     0.000/sec        0.0017/sec   total: 20
 ccmap_shrink               0.0/sec     0.000/sec        0.0000/sec   total: 13
-cmap_expand                0.6/sec     0.150/sec        0.1122/sec   total: 44760
-cmap_shrink                0.6/sec     0.150/sec        0.1125/sec   total: 44743
+cmap_expand                0.6/sec     0.150/sec        0.1122/sec   total: 44
+cmap_shrink                0.6/sec     0.150/sec        0.1125/sec   total: 44
 dpif_destroy               0.0/sec     0.000/sec        0.0000/sec   total: 3
 dpif_port_add              0.0/sec     0.000/sec        0.0000/sec   total: 12
 dpif_port_del              0.0/sec     0.000/sec        0.0000/sec   total: 9
 dpif_flow_flush            0.0/sec     0.000/sec        0.0000/sec   total: 11
 dpif_flow_get              0.0/sec     0.000/sec        0.0000/sec   total: 80
-dpif_flow_put              0.0/sec     0.000/sec        0.0008/sec   total: 388
-dpif_flow_del              0.0/sec     0.000/sec        0.0008/sec   total: 325
-dpif_execute               0.0/sec     0.000/sec        0.0017/sec   total: 885
-flow_extract               0.0/sec     0.000/sec        0.0017/sec   total: 874
-miniflow_malloc            3.0/sec     0.750/sec        0.5714/sec   total: 200658
+dpif_flow_put              0.0/sec     0.000/sec        0.0008/sec   total: 38
+dpif_flow_del              0.0/sec     0.000/sec        0.0008/sec   total: 32
+dpif_execute               0.0/sec     0.000/sec        0.0017/sec   total: 88
+flow_extract               0.0/sec     0.000/sec        0.0017/sec   total: 87
+miniflow_malloc            3.0/sec     0.750/sec        0.5714/sec   total: 20
 hmap_pathological          0.0/sec     0.000/sec        0.0000/sec   total: 6
-hmap_expand               27.0/sec    20.400/sec       19.6725/sec   total: 2107069
-netdev_get_stats           0.6/sec     0.600/sec        0.5950/sec   total: 33529
-txn_unchanged              0.6/sec     0.150/sec        0.1097/sec   total: 44273
-txn_incomplete             0.2/sec     0.200/sec        0.1986/sec   total: 13551
-txn_success                0.2/sec     0.200/sec        0.1983/sec   total: 13491
-poll_create_node         197.8/sec   114.033/sec      107.3056/sec   total: 11401827
-poll_zero_timeout          0.2/sec     0.083/sec        0.0742/sec   total: 19897
-rconn_queued               0.2/sec     0.200/sec        0.1989/sec   total: 5870
-rconn_sent                 0.2/sec     0.200/sec        0.1989/sec   total: 5870
-seq_change               1159.2/sec  1054.483/sec     1045.1794/sec   total: 121274730
-pstream_open               0.2/sec     0.050/sec        0.0364/sec   total: 8428
-stream_open                0.0/sec     0.000/sec        0.0000/sec   total: 10624
+hmap_expand               27.0/sec    20.400/sec       19.6725/sec   total: 21
+netdev_get_stats           0.6/sec     0.600/sec        0.5950/sec   total: 33
+txn_unchanged              0.6/sec     0.150/sec        0.1097/sec   total: 44
+txn_incomplete             0.2/sec     0.200/sec        0.1986/sec   total: 13
+txn_success                0.2/sec     0.200/sec        0.1983/sec   total: 13
+poll_create_node         197.8/sec   114.033/sec      107.3056/sec   total: 11
+poll_zero_timeout          0.2/sec     0.083/sec        0.0742/sec   total: 19
+rconn_queued               0.2/sec     0.200/sec        0.1989/sec   total: 58
+rconn_sent                 0.2/sec     0.200/sec        0.1989/sec   total: 58
+seq_change               1159.2/sec  1054.483/sec     1045.1794/sec   total: 12
+pstream_open               0.2/sec     0.050/sec        0.0364/sec   total: 84
+stream_open                0.0/sec     0.000/sec        0.0000/sec   total: 10
 unixctl_received           0.0/sec     0.000/sec        0.0000/sec   total: 45
 unixctl_replied            0.0/sec     0.000/sec        0.0000/sec   total: 45
-util_xalloc              523.4/sec   277.083/sec      257.8719/sec   total: 30402065
-vconn_open                 0.0/sec     0.000/sec        0.0000/sec   total: 10623
-vconn_received             0.2/sec     0.200/sec        0.1989/sec   total: 6264
-vconn_sent                 0.2/sec     0.200/sec        0.1989/sec   total: 5874
+util_xalloc              523.4/sec   277.083/sec      257.8719/sec   total: 30
+vconn_open                 0.0/sec     0.000/sec        0.0000/sec   total: 10
+vconn_received             0.2/sec     0.200/sec        0.1989/sec   total: 62
+vconn_sent                 0.2/sec     0.200/sec        0.1989/sec   total: 58
 netdev_set_policing        0.0/sec     0.000/sec        0.0000/sec   total: 26
-netdev_get_hwaddr          0.0/sec     0.000/sec        0.0019/sec   total: 9045
+netdev_get_hwaddr          0.0/sec     0.000/sec        0.0019/sec   total: 90
 netdev_set_hwaddr          0.0/sec     0.000/sec        0.0000/sec   total: 4
 netdev_get_ethtool         0.0/sec     0.000/sec        0.0000/sec   total: 34
 netdev_set_ethtool         0.0/sec     0.000/sec        0.0000/sec   total: 8
-netlink_received          15.0/sec     7.467/sec        6.8706/sec   total: 1131080
-netlink_recv_jumbo         3.4/sec     1.150/sec        0.9664/sec   total: 132827
-netlink_sent              14.2/sec     7.267/sec        6.6875/sec   total: 1080282
-nln_changed                0.2/sec     0.050/sec        0.0464/sec   total: 12865
+netlink_received          15.0/sec     7.467/sec        6.8706/sec   total: 11
+netlink_recv_jumbo         3.4/sec     1.150/sec        0.9664/sec   total: 13
+netlink_sent              14.2/sec     7.267/sec        6.6875/sec   total: 10
+nln_changed                0.2/sec     0.050/sec        0.0464/sec   total: 12
 87 events never hit
 """
     return stats
@@ -384,8 +384,8 @@ class TestCoverageif_Collection(TestCase):
         self.coverage_map["coverage"] = coverage
 
     # Test case:
-    #   getting coverage counter stats from get_coverage_stats function and checking
-    #   if declared coverage object is modified or not
+    #   getting coverage counter stats from get_coverage_stats function and
+    #   checking if declared coverage object is modified or not
 
     @mock.patch('netcontrold.lib.util.exec_host_command', mock_coverage_stats)
     def test_get_coverage_stats_1(self):
