@@ -693,8 +693,8 @@ def pmd_need_rebalance(pmd_map):
 
 def get_coverage_stats(coverage_map):
     """
-    Collect stats of coverage counters. In every sampling iteration, these stats are stored
-    in corresponding sampling slots.
+    Collect stats of coverage counters. In every sampling iteration,
+    these stats are stored in corresponding sampling slots.
 
     Parameters
     ----------
@@ -706,7 +706,6 @@ def get_coverage_stats(coverage_map):
     OsCommandExc
         if the given OS command did not succeed for some reason.
     """
-    nlog = Context.nlog
 
     # retrieve required data from the vswitch.
     cmd = "ovs-appctl coverage/show"
