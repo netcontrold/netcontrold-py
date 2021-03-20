@@ -2,6 +2,6 @@ ansible==2.7.16
 autopep8==1.2.4
 configparser==3.7.1
 flake8==3.4.1
-Jinja2==2.10.1
+Jinja2==2.11.3
 pep8==1.6.2
 PyYAML==5.1
