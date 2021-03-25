@@ -4,4 +4,4 @@ configparser==3.7.1
 flake8==3.4.1
 Jinja2==2.10.1
 pep8==1.6.2
-PyYAML==5.1
+PyYAML==5.4
